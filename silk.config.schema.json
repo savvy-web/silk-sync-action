@@ -1,0 +1,102 @@
+{
+	"$schema": "http://json-schema.org/draft-07/schema#",
+	"title": "Silk Sync Configuration",
+	"description": "Configuration for the silk-sync workflow that standardizes repository labels and settings across the organization.",
+	"type": "object",
+	"required": ["labels", "settings"],
+	"additionalProperties": false,
+	"properties": {
+		"$schema": {
+			"type": "string",
+			"description": "Path to the JSON schema file."
+		},
+		"labels": {
+			"type": "array",
+			"description": "GitHub issue labels to sync across repositories.",
+			"items": {
+				"type": "object",
+				"required": ["name", "description", "color"],
+				"additionalProperties": false,
+				"properties": {
+					"name": {
+						"type": "string",
+						"description": "The label name. Case-insensitive matching is used during sync.",
+						"minLength": 1,
+						"maxLength": 50
+					},
+					"description": {
+						"type": "string",
+						"description": "A short description of the label's purpose.",
+						"maxLength": 100
+					},
+					"color": {
+						"type": "string",
+						"description": "The hex color code for the label (without # prefix).",
+						"pattern": "^[0-9a-fA-F]{6}$"
+					}
+				}
+			}
+		},
+		"settings": {
+			"type": "object",
+			"description": "Repository settings applied via the GitHub REST API (repos.update).",
+			"additionalProperties": false,
+			"properties": {
+				"has_wiki": {
+					"type": "boolean",
+					"description": "Enable the wiki tab."
+				},
+				"has_issues": {
+					"type": "boolean",
+					"description": "Enable the issues tab."
+				},
+				"has_projects": {
+					"type": "boolean",
+					"description": "Enable the projects tab."
+				},
+				"has_discussions": {
+					"type": "boolean",
+					"description": "Enable the discussions tab."
+				},
+				"allow_merge_commit": {
+					"type": "boolean",
+					"description": "Allow merge commits on pull requests."
+				},
+				"allow_squash_merge": {
+					"type": "boolean",
+					"description": "Allow squash merging on pull requests."
+				},
+				"squash_merge_commit_title": {
+					"type": "string",
+					"description": "Default title for squash merge commits.",
+					"enum": ["PR_TITLE", "COMMIT_OR_PR_TITLE"]
+				},
+				"squash_merge_commit_message": {
+					"type": "string",
+					"description": "Default message for squash merge commits.",
+					"enum": ["PR_BODY", "COMMIT_MESSAGES", "BLANK"]
+				},
+				"allow_rebase_merge": {
+					"type": "boolean",
+					"description": "Allow rebase merging on pull requests."
+				},
+				"allow_update_branch": {
+					"type": "boolean",
+					"description": "Allow updating pull request branches from the base branch."
+				},
+				"delete_branch_on_merge": {
+					"type": "boolean",
+					"description": "Automatically delete head branches after pull requests are merged."
+				},
+				"web_commit_signoff_required": {
+					"type": "boolean",
+					"description": "Require sign-off on web-based commits."
+				},
+				"allow_auto_merge": {
+					"type": "boolean",
+					"description": "Allow auto-merge on pull requests."
+				}
+			}
+		}
+	}
+}

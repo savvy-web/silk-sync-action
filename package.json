@@ -1,12 +1,12 @@
 {
-	"name": "@savvy-web/pnpm-module-template",
+	"name": "@savvy-web/silk-sync-action",
 	"version": "0.0.0",
 	"private": true,
-	"description": "A template repository for developing and deploying Node.js modules from a pnpm monorepo structure.",
-	"homepage": "https://github.com/spencerbeggs/pnpm-module-template#readme",
+	"description": "GitHub Action to synchronize settings for repos using the Silk Suite system",
+	"homepage": "https://github.com/savvy-web/silk-sync-action#readme",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/spencerbeggs/pnpm-module-template.git"
+		"url": "https://github.com/savvy-web/silk-sync-action.git"
 	},
 	"license": "MIT",
 	"author": {
@@ -15,15 +15,11 @@
 		"url": "https://savvyweb.systems"
 	},
 	"type": "module",
-	"exports": {
-		".": "./src/index.ts"
-	},
 	"scripts": {
-		"build": "turbo run build:dev build:prod --log-order=grouped",
-		"build:dev": "rslib build --config-loader native --env-mode dev",
+		"build": "turbo run build:prod --log-order=grouped",
 		"build:inspect": "rslib inspect --config-loader native --env-mode npm --verbose",
-		"build:prod": "rslib build --config-loader native --env-mode npm",
-		"ci:build": "CI=\"true\" turbo run build:dev build:prod --log-order=grouped --output-logs=full",
+		"build:prod": "github-action-builder build",
+		"ci:build": "CI=\"true\" turbo run build:prod --log-order=grouped --output-logs=full",
 		"ci:test": "CI=\"true\" vitest run --coverage",
 		"ci:version": "changeset version && biome format --write .",
 		"commit:check": "savvy-commit check",
@@ -34,22 +30,20 @@
 		"lint:md": "markdownlint-cli2 '**/*.{md,mdx}' --config './lib/configs/.markdownlint-cli2.jsonc'",
 		"lint:md:fix": "markdownlint-cli2  --config './lib/configs/.markdownlint-cli2.jsonc' --fix",
 		"prepare": "husky",
-		"test": "vitest run",
-		"test:coverage": "vitest run --coverage",
-		"test:watch": "vitest --watch",
+		"test": "vitest run --pass-with-no-tests",
+		"test:coverage": "vitest run --coverage --pass-with-no-tests",
+		"test:watch": "vitest --watch --pass-with-no-tests",
 		"typecheck": "turbo run types:check --log-prefix=none --log-order=grouped",
-		"types:check": "tsgo --noEmit"
+		"types:check": "tsgo --noEmit",
+		"validate": "github-action-builder validate"
 	},
 	"devDependencies": {
 		"@changesets/cli": "catalog:silk",
 		"@savvy-web/commitlint": "^0.3.1",
+		"@savvy-web/github-action-builder": "^0.1.2",
 		"@savvy-web/lint-staged": "^0.3.2",
-		"@savvy-web/rslib-builder": "^0.12.1",
-		"@types/node": "catalog:silk",
-		"@typescript/native-preview": "catalog:silk",
 		"@vitest/coverage-v8": "catalog:silk",
 		"turbo": "catalog:silk",
-		"typescript": "catalog:silk",
 		"vitest": "catalog:silk"
 	},
 	"packageManager": "pnpm@10.29.2+sha512.bef43fa759d91fd2da4b319a5a0d13ef7a45bb985a3d7342058470f9d2051a3ba8674e629672654686ef9443ad13a82da2beb9eeb3e0221c87b8154fff9d74b8",

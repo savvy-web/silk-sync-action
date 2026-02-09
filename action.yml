@@ -1,0 +1,901 @@
+name: Sync Standard Repositories
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Preview changes without applying them (dry-run mode)
+        type: boolean
+        default: false
+        required: false
+      remove_custom_labels:
+        description: Remove custom labels that don't match org defaults
+        type: boolean
+        default: false
+        required: false
+      sync_settings:
+        description: Sync repository settings (merge strategies, branch cleanup, etc.)
+        type: boolean
+        default: true
+        required: false
+      sync_projects:
+        description: Sync project linking and backfill for repos with project-tracking
+        type: boolean
+        default: true
+        required: false
+      skip_backfill:
+        description: Link repos to projects only, skip adding open issues/PRs
+        type: boolean
+        default: false
+        required: false
+permissions:
+  contents: read
+jobs:
+  sync-repos:
+    name: Sync Repositories
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+      - name: Load silk config
+        id: load-config
+        uses: actions/github-script@v8
+        with:
+          github-token: ${{ steps.app-token.outputs.token }}
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+
+            console.log(`📋 Loading silk config from .github/silk.config.json...`);
+
+            const configPath = path.join(process.env.GITHUB_WORKSPACE, '.github/silk.config.json');
+            const configContent = fs.readFileSync(configPath, 'utf8');
+            const config = JSON.parse(configContent);
+
+            // Log labels
+            const labels = config.labels || [];
+            console.log(`\n✅ Loaded ${labels.length} default labels:`);
+            labels.forEach(label => {
+              console.log(`  - ${label.name} (#${label.color}): ${label.description}`);
+            });
+
+            if (labels.length === 0) {
+              console.log('⚠️  No labels found in config');
+            }
+
+            // Log settings
+            const settings = config.settings || {};
+            const settingsKeys = Object.keys(settings);
+            console.log(`\n✅ Loaded ${settingsKeys.length} settings:`);
+            settingsKeys.forEach(key => {
+              console.log(`  - ${key}: ${JSON.stringify(settings[key])}`);
+            });
+
+            return config;
+      - name: Discover repositories
+        id: find-repos
+        uses: actions/github-script@v8
+        with:
+          github-token: ${{ steps.app-token.outputs.token }}
+          script: |
+            const org = context.repo.owner;
+
+            console.log(`🔍 Querying repository custom properties in ${org}...`);
+
+            const { data: reposWithProps } = await github.request(
+              'GET /orgs/{org}/properties/values',
+              {
+                org,
+                headers: {
+                  'X-GitHub-Api-Version': '2022-11-28'
+                }
+              }
+            );
+
+            // Build unified repo list with all relevant properties
+            const repos = reposWithProps.map(repo => {
+              const props = {};
+              for (const p of (repo.properties || [])) {
+                props[p.property_name] = p.value;
+              }
+
+              const projectNumber = parseInt(props['project-number'] || '1', 10);
+              const projectTracking =
+                (props['project-tracking'] === true || props['project-tracking'] === 'true')
+                && projectNumber > 0;
+
+              return {
+                name: repo.repository_name,
+                workflow: props['workflow'] || null,
+                projectTracking,
+                projectNumber: projectTracking ? projectNumber : null
+              };
+            });
+
+            const standardRepos = repos.filter(r => r.workflow === 'standard');
+            const trackedRepos = repos.filter(r => r.projectTracking);
+
+            // Deduplicated union of repos that need any processing
+            const repoMap = new Map();
+            for (const r of repos) {
+              if (r.workflow === 'standard' || r.projectTracking) {
+                repoMap.set(r.name, r);
+              }
+            }
+            const allRepos = Array.from(repoMap.values());
+
+            console.log(`✅ Found ${standardRepos.length} repos with workflow: standard`);
+            standardRepos.forEach(r => console.log(`  - ${r.name}`));
+
+            console.log(`✅ Found ${trackedRepos.length} repos with project-tracking enabled`);
+            trackedRepos.forEach(r => console.log(`  - ${r.name} → project #${r.projectNumber}`));
+
+            console.log(`📦 Total repos to process: ${allRepos.length}`);
+
+            if (allRepos.length === 0) {
+              console.log('⏭️  No repositories to sync');
+            }
+
+            return allRepos;
+      - name: Sync repositories
+        uses: actions/github-script@v8
+        with:
+          github-token: ${{ steps.app-token.outputs.token }}
+          script: |
+            const org = context.repo.owner;
+            const config = ${{ steps.load-config.outputs.result }};
+            const defaultLabels = config.labels || [];
+            const repos = ${{ steps.find-repos.outputs.result }};
+            const dryRun = ${{ github.event.inputs.dry_run == 'true' }};
+            const removeCustomLabels = ${{ github.event.inputs.remove_custom_labels == 'true' }};
+            const syncSettings = ${{ github.event.inputs.sync_settings != 'false' }};
+            const syncProjects = ${{ github.event.inputs.sync_projects != 'false' }};
+            const skipBackfill = ${{ github.event.inputs.skip_backfill == 'true' }};
+            const desiredSettings = syncSettings ? (config.settings || {}) : {};
+
+            if (repos.length === 0) {
+              console.log('No repositories to process');
+              core.summary.addRaw('⏭️ No repositories to process');
+              await core.summary.write();
+              return;
+            }
+
+            if (dryRun) {
+              console.log('\n🔍 DRY-RUN MODE: No changes will be applied\n');
+            } else {
+              console.log('\n🔄 Starting sync process...\n');
+            }
+
+            // ── Helpers ──
+
+            async function checkRateLimit() {
+              const { data: rateLimit } = await github.rest.rateLimit.get();
+              const remaining = rateLimit.resources.core.remaining;
+              const resetTime = new Date(rateLimit.resources.core.reset * 1000);
+
+              if (remaining < 100) {
+                console.log(`⚠️  Rate limit low: ${remaining} requests remaining (resets at ${resetTime.toISOString()})`);
+              }
+
+              return remaining;
+            }
+
+            function delay(ms) {
+              return new Promise(resolve => setTimeout(resolve, ms));
+            }
+
+            // ── Phase 1: Resolve projects (if sync_projects enabled) ──
+
+            const projectCache = new Map();
+
+            if (syncProjects) {
+              const trackedRepos = repos.filter(r => r.projectTracking);
+              const projectGroups = new Map();
+              for (const repo of trackedRepos) {
+                if (!projectGroups.has(repo.projectNumber)) {
+                  projectGroups.set(repo.projectNumber, []);
+                }
+                projectGroups.get(repo.projectNumber).push(repo);
+              }
+
+              if (projectGroups.size > 0) {
+                console.log(`📋 Resolving ${projectGroups.size} project(s)...`);
+
+                for (const [projectNumber, groupRepos] of projectGroups) {
+                  console.log(`\n🔎 Resolving project #${projectNumber} (${groupRepos.length} repos)...`);
+
+                  try {
+                    const { organization } = await github.graphql(`
+                      query($org: String!, $number: Int!) {
+                        organization(login: $org) {
+                          projectV2(number: $number) {
+                            id
+                            title
+                            closed
+                            repositories(first: 100) {
+                              nodes { nameWithOwner }
+                            }
+                          }
+                        }
+                      }
+                    `, { org, number: projectNumber });
+
+                    if (!organization?.projectV2) {
+                      console.log(`  ❌ Project #${projectNumber} not found`);
+                      projectCache.set(projectNumber, { error: `Project #${projectNumber} not found` });
+                      continue;
+                    }
+
+                    const project = organization.projectV2;
+
+                    if (project.closed) {
+                      console.log(`  ⚠️  Project "${project.title}" (#${projectNumber}) is closed, skipping`);
+                      projectCache.set(projectNumber, { error: `Project "${project.title}" is closed`, closed: true });
+                      continue;
+                    }
+
+                    const linkedRepos = new Set(
+                      project.repositories.nodes.map(r => r.nameWithOwner)
+                    );
+
+                    console.log(`  ✅ "${project.title}" (${linkedRepos.size} repos already linked)`);
+
+                    projectCache.set(projectNumber, {
+                      id: project.id,
+                      title: project.title,
+                      linkedRepos
+                    });
+                  } catch (error) {
+                    console.log(`  ❌ Failed to resolve project #${projectNumber}: ${error.message}`);
+                    projectCache.set(projectNumber, { error: error.message });
+                  }
+                }
+              }
+            }
+
+            // ── Phase 2: Process each repo ──
+
+            const summary = [];
+            let repoIndex = 0;
+
+            for (const repo of repos) {
+              repoIndex++;
+
+              // Check rate limit every 10 repositories
+              if (repoIndex % 10 === 0) {
+                const remaining = await checkRateLimit();
+                if (remaining < 50) {
+                  console.log('⏸️  Pausing for rate limit cooldown...');
+                  await delay(60000);
+                }
+              }
+
+              // Add delay between repos (except first one)
+              if (repoIndex > 1) {
+                await delay(1000);
+              }
+
+              const isStandard = repo.workflow === 'standard';
+              const isTracked = syncProjects && repo.projectTracking;
+
+              console.log(`\n📦 Processing: ${repo.name} (${repoIndex}/${repos.length})`);
+              if (isStandard) console.log(`  🏷️  Labels + settings (workflow: standard)`);
+              if (isTracked) console.log(`  📋 Project linking → #${repo.projectNumber}`);
+              console.log('─'.repeat(60));
+
+              const repoResult = {
+                repo: repo.name,
+                isStandard,
+                // Label fields
+                created: 0,
+                updated: 0,
+                unchanged: 0,
+                removed: 0,
+                custom: 0,
+                customLabels: [],
+                // Settings fields
+                settingsChanged: 0,
+                settingsUnchanged: 0,
+                settingsChanges: [],
+                // Project fields
+                projectNumber: isTracked ? repo.projectNumber : null,
+                projectTitle: null,
+                projectLinked: null,
+                itemsAdded: 0,
+                itemsAlreadyPresent: 0,
+                // Status
+                errors: [],
+                success: true
+              };
+
+              // We may need repo node_id for both settings and project linking
+              let repoNodeId = null;
+
+              try {
+                // ── Labels (workflow: standard only) ──
+
+                if (isStandard) {
+                  const { data: existingLabels } = await github.rest.issues.listLabelsForRepo({
+                    owner: org,
+                    repo: repo.name
+                  });
+
+                  console.log(`  Current labels: ${existingLabels.length}`);
+
+                  const defaultLabelNames = new Set(defaultLabels.map(l => l.name.toLowerCase()));
+
+                  const customLabels = existingLabels.filter(label =>
+                    !defaultLabelNames.has(label.name.toLowerCase())
+                  );
+
+                  repoResult.custom = customLabels.length;
+                  repoResult.customLabels = customLabels.map(l => l.name);
+
+                  if (customLabels.length > 0) {
+                    console.log(`  Custom labels: ${customLabels.length}`);
+                    customLabels.forEach(label => {
+                      console.log(`    - ${label.name} (#${label.color})`);
+                    });
+                  }
+
+                  // Process each default label
+                  for (const defaultLabel of defaultLabels) {
+                    const existingLabel = existingLabels.find(
+                      l => l.name.toLowerCase() === defaultLabel.name.toLowerCase()
+                    );
+
+                    if (!existingLabel) {
+                      const action = dryRun ? '[DRY-RUN] Would create' : 'Created';
+                      try {
+                        if (!dryRun) {
+                          await github.rest.issues.createLabel({
+                            owner: org,
+                            repo: repo.name,
+                            name: defaultLabel.name,
+                            description: defaultLabel.description,
+                            color: defaultLabel.color
+                          });
+                        }
+                        console.log(`  ✨ ${action}: ${defaultLabel.name}`);
+                        repoResult.created++;
+                      } catch (error) {
+                        console.error(`  ❌ Failed to create "${defaultLabel.name}": ${error.message}`);
+                        repoResult.errors.push({ label: defaultLabel.name, operation: 'create', error: error.message });
+                      }
+                    } else {
+                      const descriptionDiffers = existingLabel.description !== defaultLabel.description;
+                      const colorDiffers = existingLabel.color !== defaultLabel.color;
+                      const nameCasingDiffers = existingLabel.name !== defaultLabel.name;
+                      const needsUpdate = descriptionDiffers || colorDiffers || nameCasingDiffers;
+
+                      if (needsUpdate) {
+                        const action = dryRun ? '[DRY-RUN] Would update' : 'Updated';
+                        const changes = [];
+                        if (nameCasingDiffers) changes.push(`name: "${existingLabel.name}" → "${defaultLabel.name}"`);
+                        if (descriptionDiffers) changes.push('description');
+                        if (colorDiffers) changes.push(`color: #${existingLabel.color} → #${defaultLabel.color}`);
+
+                        try {
+                          if (!dryRun) {
+                            await github.rest.issues.updateLabel({
+                              owner: org,
+                              repo: repo.name,
+                              name: existingLabel.name,
+                              new_name: defaultLabel.name,
+                              description: defaultLabel.description,
+                              color: defaultLabel.color
+                            });
+                          }
+                          console.log(`  🔄 ${action}: ${defaultLabel.name}`);
+                          if (changes.length > 0) {
+                            console.log(`     Changes: ${changes.join(', ')}`);
+                          }
+                          repoResult.updated++;
+                        } catch (error) {
+                          console.error(`  ❌ Failed to update "${defaultLabel.name}": ${error.message}`);
+                          repoResult.errors.push({ label: defaultLabel.name, operation: 'update', error: error.message });
+                        }
+                      } else {
+                        repoResult.unchanged++;
+                      }
+                    }
+                  }
+
+                  // Remove custom labels if requested
+                  if (removeCustomLabels && customLabels.length > 0) {
+                    console.log(`\n  Removing custom labels (not in org defaults)...`);
+                    for (const customLabel of customLabels) {
+                      const action = dryRun ? '[DRY-RUN] Would remove' : 'Removed';
+                      try {
+                        if (!dryRun) {
+                          await github.rest.issues.deleteLabel({
+                            owner: org,
+                            repo: repo.name,
+                            name: customLabel.name
+                          });
+                        }
+                        console.log(`  🗑️  ${action}: ${customLabel.name}`);
+                        repoResult.removed++;
+                      } catch (error) {
+                        console.error(`  ❌ Failed to remove "${customLabel.name}": ${error.message}`);
+                        repoResult.errors.push({ label: customLabel.name, operation: 'remove', error: error.message });
+                      }
+                    }
+                  }
+
+                  // ── Settings (workflow: standard only) ──
+
+                  if (syncSettings && Object.keys(desiredSettings).length > 0) {
+                    console.log(`\n  ⚙️  Checking repository settings...`);
+
+                    const { data: currentRepo } = await github.rest.repos.get({
+                      owner: org,
+                      repo: repo.name
+                    });
+
+                    repoNodeId = currentRepo.node_id;
+
+                    const diffs = {};
+                    for (const [key, desiredValue] of Object.entries(desiredSettings)) {
+                      const currentValue = currentRepo[key];
+                      if (currentValue !== desiredValue) {
+                        diffs[key] = { current: currentValue, desired: desiredValue };
+                        repoResult.settingsChanged++;
+                      } else {
+                        repoResult.settingsUnchanged++;
+                      }
+                    }
+
+                    if (Object.keys(diffs).length > 0) {
+                      for (const [key, { current, desired }] of Object.entries(diffs)) {
+                        const action = dryRun ? '[DRY-RUN] Would change' : 'Changed';
+                        console.log(`  ⚙️  ${action}: ${key}: ${JSON.stringify(current)} → ${JSON.stringify(desired)}`);
+                        repoResult.settingsChanges.push({ key, from: current, to: desired });
+                      }
+
+                      if (!dryRun) {
+                        try {
+                          // Only send settings that actually differ to avoid
+                          // org-enforced setting rejection (e.g. web_commit_signoff_required)
+                          const settingsToApply = {};
+                          for (const [key, { desired }] of Object.entries(diffs)) {
+                            settingsToApply[key] = desired;
+                          }
+                          await github.rest.repos.update({
+                            owner: org,
+                            repo: repo.name,
+                            ...settingsToApply
+                          });
+                          console.log(`  ✅ Settings applied successfully`);
+                        } catch (error) {
+                          console.error(`  ❌ Failed to apply settings: ${error.message}`);
+                          repoResult.errors.push({ label: 'settings', operation: 'update-settings', error: error.message });
+                        }
+                      }
+                    } else {
+                      console.log(`  ✅ All settings already match`);
+                    }
+                  }
+                }
+
+                // ── Project linking (project-tracking repos only) ──
+
+                if (isTracked) {
+                  const project = projectCache.get(repo.projectNumber);
+                  if (!project || project.error) {
+                    const msg = project?.error || 'Project not resolved';
+                    console.log(`  ⏭️  Skipping project sync: ${msg}`);
+                    repoResult.errors.push({ label: 'project', operation: 'resolve', error: msg });
+                  } else {
+                    repoResult.projectTitle = project.title;
+
+                    // Get repo node_id if we don't already have it from settings sync
+                    if (!repoNodeId) {
+                      const { data: repoData } = await github.rest.repos.get({
+                        owner: org,
+                        repo: repo.name
+                      });
+                      repoNodeId = repoData.node_id;
+                    }
+
+                    const fullName = `${org}/${repo.name}`;
+
+                    // Link repo to project
+                    if (project.linkedRepos.has(fullName)) {
+                      console.log(`  ℹ️  Already linked to "${project.title}"`);
+                      repoResult.projectLinked = 'already';
+                    } else if (dryRun) {
+                      console.log(`  [DRY-RUN] Would link to "${project.title}"`);
+                      repoResult.projectLinked = 'dry-run';
+                    } else {
+                      try {
+                        await github.graphql(`
+                          mutation($projectId: ID!, $repositoryId: ID!) {
+                            linkProjectV2ToRepository(input: {
+                              projectId: $projectId
+                              repositoryId: $repositoryId
+                            }) {
+                              repository { id }
+                            }
+                          }
+                        `, { projectId: project.id, repositoryId: repoNodeId });
+
+                        console.log(`  ✅ Linked to "${project.title}"`);
+                        repoResult.projectLinked = 'linked';
+                      } catch (linkError) {
+                        if (linkError.message?.includes('already') || linkError.message?.includes('exists')) {
+                          console.log(`  ℹ️  Already linked to "${project.title}"`);
+                          repoResult.projectLinked = 'already';
+                        } else {
+                          console.log(`  ❌ Failed to link: ${linkError.message}`);
+                          repoResult.errors.push({ label: 'project', operation: 'link', error: linkError.message });
+                          repoResult.projectLinked = 'error';
+                        }
+                      }
+                    }
+
+                    // Backfill open issues/PRs
+                    if (skipBackfill) {
+                      console.log('  ⏭️  Backfill skipped (skip_backfill=true)');
+                    } else {
+                      console.log('  📥 Backfilling open issues/PRs...');
+                      let page = 1;
+                      let pageCount = 0;
+                      let hasMore = true;
+
+                      while (hasMore) {
+                        // Check GraphQL rate limit every 3 pages
+                        if (pageCount > 0 && pageCount % 3 === 0) {
+                          const { data: rateLimit } = await github.rest.rateLimit.get();
+                          const graphqlRemaining = rateLimit.resources.graphql.remaining;
+                          if (graphqlRemaining < 100) {
+                            console.log(`    ⏸️  GraphQL rate limit low (${graphqlRemaining}), pausing 30s...`);
+                            await delay(30000);
+                          }
+                        }
+
+                        const { data: items } = await github.rest.issues.listForRepo({
+                          owner: org,
+                          repo: repo.name,
+                          state: 'open',
+                          per_page: 100,
+                          page
+                        });
+
+                        if (items.length === 0) {
+                          hasMore = false;
+                          break;
+                        }
+
+                        for (const item of items) {
+                          const itemType = item.pull_request ? 'PR' : 'Issue';
+
+                          if (dryRun) {
+                            console.log(`    [DRY-RUN] Would add ${itemType} #${item.number}`);
+                            repoResult.itemsAdded++;
+                          } else {
+                            try {
+                              await github.graphql(`
+                                mutation($projectId: ID!, $contentId: ID!) {
+                                  addProjectV2ItemById(input: {
+                                    projectId: $projectId
+                                    contentId: $contentId
+                                  }) {
+                                    item { id }
+                                  }
+                                }
+                              `, { projectId: project.id, contentId: item.node_id });
+
+                              console.log(`    ✅ Added ${itemType} #${item.number}`);
+                              repoResult.itemsAdded++;
+                            } catch (addError) {
+                              if (addError.message?.includes('already exists')) {
+                                repoResult.itemsAlreadyPresent++;
+                              } else {
+                                console.log(`    ❌ Failed to add ${itemType} #${item.number}: ${addError.message}`);
+                                repoResult.errors.push({ label: `${itemType} #${item.number}`, operation: 'backfill', error: addError.message });
+                              }
+                            }
+
+                            await delay(100);
+                          }
+                        }
+
+                        pageCount++;
+                        if (items.length < 100) {
+                          hasMore = false;
+                        } else {
+                          page++;
+                        }
+                      }
+
+                      const backfillTotal = repoResult.itemsAdded + repoResult.itemsAlreadyPresent;
+                      console.log(`  📊 Backfill: ${repoResult.itemsAdded} added, ${repoResult.itemsAlreadyPresent} already present (${backfillTotal} total)`);
+                    }
+                  }
+                }
+
+                // Per-repo summary log
+                console.log(`\n  Summary for ${repo.name}:`);
+                if (isStandard) {
+                  console.log(`    ✨ Created: ${repoResult.created}`);
+                  console.log(`    🔄 Updated: ${repoResult.updated}`);
+                  console.log(`    ✓ Unchanged: ${repoResult.unchanged}`);
+                  console.log(`    🗑️  Removed: ${repoResult.removed}`);
+                  console.log(`    🏷️  Custom: ${repoResult.custom}`);
+                  if (syncSettings) {
+                    console.log(`    ⚙️  Settings changed: ${repoResult.settingsChanged}`);
+                    console.log(`    ⚙️  Settings matched: ${repoResult.settingsUnchanged}`);
+                  }
+                }
+                if (isTracked) {
+                  console.log(`    📋 Project: ${repoResult.projectLinked || 'skipped'}`);
+                  if (!skipBackfill) {
+                    console.log(`    📥 Items added: ${repoResult.itemsAdded}`);
+                    console.log(`    📥 Items already present: ${repoResult.itemsAlreadyPresent}`);
+                  }
+                }
+                if (repoResult.errors.length > 0) {
+                  console.log(`    ❌ Errors: ${repoResult.errors.length}`);
+                  repoResult.errors.forEach(err => {
+                    console.log(`       - ${err.operation} "${err.label}": ${err.error}`);
+                  });
+                }
+
+              } catch (error) {
+                console.error(`  ❌ Error processing ${repo.name}: ${error.message}`);
+                repoResult.errors.push({ label: repo.name, operation: 'process', error: error.message });
+              }
+
+              repoResult.success = repoResult.errors.length === 0;
+              summary.push(repoResult);
+            }
+
+            // ── Phase 3: Final report ──
+
+            console.log('\n' + '═'.repeat(60));
+            if (dryRun) {
+              console.log('🔍 DRY-RUN COMPLETE - SUMMARY (NO CHANGES APPLIED)');
+            } else {
+              console.log('📊 SYNC COMPLETE - SUMMARY');
+            }
+            console.log('═'.repeat(60));
+
+            const successful = summary.filter(s => s.success);
+            const partiallyFailed = summary.filter(s => !s.success && s.errors.length > 0);
+            const failed = summary.filter(s => !s.success && s.errors.length === 0);
+
+            console.log(`\n✅ Successfully processed: ${successful.length}/${summary.length} repositories`);
+            if (partiallyFailed.length > 0) {
+              console.log(`⚠️  Partially failed: ${partiallyFailed.length} (completed with errors)`);
+            }
+
+            // Label statistics (standard repos only)
+            const standardRepos = summary.filter(s => s.isStandard);
+            if (standardRepos.length > 0) {
+              const totalCreated = standardRepos.reduce((sum, s) => sum + s.created, 0);
+              const totalUpdated = standardRepos.reduce((sum, s) => sum + s.updated, 0);
+              const totalRemoved = standardRepos.reduce((sum, s) => sum + s.removed, 0);
+              const totalCustom = standardRepos.reduce((sum, s) => sum + s.custom, 0);
+
+              console.log(`\n📈 Label Statistics (${standardRepos.length} repos):`);
+              console.log(`  ✨ Labels ${dryRun ? 'to create' : 'created'}: ${totalCreated}`);
+              console.log(`  🔄 Labels ${dryRun ? 'to update' : 'updated'}: ${totalUpdated}`);
+              if (removeCustomLabels || totalRemoved > 0) {
+                console.log(`  🗑️  Labels ${dryRun ? 'to remove' : 'removed'}: ${totalRemoved}`);
+              }
+              console.log(`  🏷️  Custom labels found: ${totalCustom}`);
+
+              if (syncSettings) {
+                const totalSettingsChanged = standardRepos.reduce((sum, s) => sum + s.settingsChanged, 0);
+                const totalSettingsMatched = standardRepos.reduce((sum, s) => sum + s.settingsUnchanged, 0);
+                const reposWithDrift = standardRepos.filter(s => s.settingsChanged > 0);
+
+                console.log(`\n  ⚙️  Settings ${dryRun ? 'to change' : 'changed'}: ${totalSettingsChanged}`);
+                console.log(`  ⚙️  Settings already matching: ${totalSettingsMatched}`);
+                console.log(`  ⚙️  Repos with settings drift: ${reposWithDrift.length}`);
+              }
+            }
+
+            // Project statistics (tracked repos only)
+            const trackedResults = summary.filter(s => s.projectNumber !== null);
+            if (syncProjects && trackedResults.length > 0) {
+              const totalLinked = trackedResults.filter(s => s.projectLinked === 'linked' || s.projectLinked === 'dry-run').length;
+              const totalAlreadyLinked = trackedResults.filter(s => s.projectLinked === 'already').length;
+              const totalItemsAdded = trackedResults.reduce((sum, s) => sum + s.itemsAdded, 0);
+              const totalAlreadyPresent = trackedResults.reduce((sum, s) => sum + s.itemsAlreadyPresent, 0);
+
+              console.log(`\n📋 Project Statistics (${trackedResults.length} repos):`);
+
+              // Per-project breakdown
+              for (const [projectNumber, project] of projectCache) {
+                if (project.error) {
+                  console.log(`  Project #${projectNumber}: ${project.error}`);
+                } else {
+                  const projectRepos = trackedResults.filter(s => s.projectNumber === projectNumber);
+                  console.log(`  Project #${projectNumber} "${project.title}": ${projectRepos.length} repos`);
+                }
+              }
+
+              console.log(`  Repos ${dryRun ? 'to link' : 'linked'}: ${totalLinked}`);
+              console.log(`  Repos already linked: ${totalAlreadyLinked}`);
+              if (!skipBackfill) {
+                console.log(`  Items ${dryRun ? 'to add' : 'added'}: ${totalItemsAdded}`);
+                console.log(`  Items already in project: ${totalAlreadyPresent}`);
+              }
+            }
+
+            // Report partial failures
+            if (partiallyFailed.length > 0) {
+              console.log(`\n⚠️  Repositories with partial failures:`);
+              partiallyFailed.forEach(repo => {
+                console.log(`\n  ${repo.repo} (${repo.errors.length} errors):`);
+                repo.errors.forEach(err => {
+                  console.log(`    ❌ ${err.operation} "${err.label}": ${err.error}`);
+                });
+              });
+            }
+
+            if (failed.length > 0) {
+              console.log(`\n❌ Failed repositories: ${failed.length}`);
+              failed.forEach(f => {
+                console.log(`  - ${f.repo}: ${f.errors.map(e => e.error).join(', ')}`);
+              });
+            }
+
+            // Report repositories with custom labels
+            const reposWithCustomLabels = standardRepos.filter(s => s.custom > 0);
+            if (reposWithCustomLabels.length > 0) {
+              console.log(`\n🏷️  Repositories with custom labels:`);
+              reposWithCustomLabels.forEach(repo => {
+                console.log(`\n  ${repo.repo} (${repo.custom} custom labels):`);
+                repo.customLabels.forEach(label => {
+                  console.log(`    - ${label}`);
+                });
+              });
+            }
+
+            // Report repositories with settings drift
+            if (syncSettings) {
+              const reposWithSettingsDrift = standardRepos.filter(s => s.settingsChanged > 0);
+              if (reposWithSettingsDrift.length > 0) {
+                console.log(`\n⚙️  Repositories with settings drift:`);
+                reposWithSettingsDrift.forEach(repo => {
+                  console.log(`\n  ${repo.repo} (${repo.settingsChanged} settings):`);
+                  repo.settingsChanges.forEach(change => {
+                    console.log(`    - ${change.key}: ${JSON.stringify(change.from)} → ${JSON.stringify(change.to)}`);
+                  });
+                });
+              }
+            }
+
+            // ── Phase 4: Step summary ──
+
+            if (dryRun) {
+              core.summary.addHeading('🔍 Dry-Run Sync Results', 2);
+              core.summary.addRaw(`\n**Mode:** Preview only (no changes applied)\n\n`);
+            } else {
+              core.summary.addHeading('Sync Results', 2);
+            }
+            core.summary.addRaw(`**Repositories processed:** ${summary.length}\n`);
+            core.summary.addRaw(`**Successful:** ${successful.length}\n`);
+            if (partiallyFailed.length > 0) {
+              core.summary.addRaw(`**Partially failed:** ${partiallyFailed.length}\n`);
+            }
+            core.summary.addRaw(`**Failed:** ${failed.length}\n`);
+
+            // Label summary
+            if (standardRepos.length > 0) {
+              const totalCreated = standardRepos.reduce((sum, s) => sum + s.created, 0);
+              const totalUpdated = standardRepos.reduce((sum, s) => sum + s.updated, 0);
+              const totalRemoved = standardRepos.reduce((sum, s) => sum + s.removed, 0);
+
+              core.summary.addHeading('Label Statistics', 3);
+              core.summary.addRaw(`- Labels ${dryRun ? 'to create' : 'created'}: ${totalCreated}\n`);
+              core.summary.addRaw(`- Labels ${dryRun ? 'to update' : 'updated'}: ${totalUpdated}\n`);
+              if (removeCustomLabels || totalRemoved > 0) {
+                core.summary.addRaw(`- Labels ${dryRun ? 'to remove' : 'removed'}: ${totalRemoved}\n`);
+              }
+
+              if (syncSettings) {
+                const totalSettingsChanged = standardRepos.reduce((sum, s) => sum + s.settingsChanged, 0);
+                const reposWithDrift = standardRepos.filter(s => s.settingsChanged > 0);
+
+                core.summary.addHeading('Settings Statistics', 3);
+                core.summary.addRaw(`- Settings ${dryRun ? 'to change' : 'changed'}: ${totalSettingsChanged}\n`);
+                core.summary.addRaw(`- Repos with settings drift: ${reposWithDrift.length}\n`);
+
+                if (reposWithDrift.length > 0) {
+                  core.summary.addHeading('Settings Drift', 4);
+                  reposWithDrift.forEach(repo => {
+                    core.summary.addRaw(`\n**${repo.repo}** (${repo.settingsChanged} settings):\n`);
+                    repo.settingsChanges.forEach(change => {
+                      core.summary.addRaw(`- \`${change.key}\`: \`${JSON.stringify(change.from)}\` → \`${JSON.stringify(change.to)}\`\n`);
+                    });
+                  });
+                }
+              }
+            }
+
+            // Project summary
+            if (syncProjects && trackedResults.length > 0) {
+              core.summary.addHeading('Project Statistics', 3);
+
+              for (const [projectNumber, project] of projectCache) {
+                if (project.error) {
+                  core.summary.addRaw(`- **Project #${projectNumber}:** ${project.error}\n`);
+                } else {
+                  const projectRepos = trackedResults.filter(s => s.projectNumber === projectNumber);
+                  core.summary.addRaw(`- **Project #${projectNumber} "${project.title}":** ${projectRepos.length} repos\n`);
+                }
+              }
+
+              const totalLinked = trackedResults.filter(s => s.projectLinked === 'linked' || s.projectLinked === 'dry-run').length;
+              const totalAlreadyLinked = trackedResults.filter(s => s.projectLinked === 'already').length;
+              const totalItemsAdded = trackedResults.reduce((sum, s) => sum + s.itemsAdded, 0);
+              const totalAlreadyPresent = trackedResults.reduce((sum, s) => sum + s.itemsAlreadyPresent, 0);
+
+              core.summary.addRaw(`- Repos ${dryRun ? 'to link' : 'linked'}: ${totalLinked}\n`);
+              core.summary.addRaw(`- Repos already linked: ${totalAlreadyLinked}\n`);
+              if (!skipBackfill) {
+                core.summary.addRaw(`- Items ${dryRun ? 'to add' : 'added'}: ${totalItemsAdded}\n`);
+                core.summary.addRaw(`- Items already in project: ${totalAlreadyPresent}\n`);
+              }
+
+              // Per-repo project details table
+              core.summary.addHeading('Project Details', 4);
+              const tableRows = trackedResults.map(s => [
+                { data: s.repo, header: false },
+                { data: `#${s.projectNumber}`, header: false },
+                { data: s.projectTitle || 'N/A', header: false },
+                { data: s.projectLinked || 'skipped', header: false },
+                { data: skipBackfill ? 'skipped' : `${s.itemsAdded} added, ${s.itemsAlreadyPresent} existing`, header: false },
+                { data: s.errors.filter(e => e.operation === 'link' || e.operation === 'backfill' || e.operation === 'resolve').length > 0 ? 'errors' : '✓', header: false }
+              ]);
+              core.summary.addTable([
+                [
+                  { data: 'Repository', header: true },
+                  { data: 'Project', header: true },
+                  { data: 'Title', header: true },
+                  { data: 'Link Status', header: true },
+                  { data: 'Backfill', header: true },
+                  { data: 'Status', header: true }
+                ],
+                ...tableRows
+              ]);
+            }
+
+            // Partial failures
+            if (partiallyFailed.length > 0) {
+              core.summary.addHeading('Partial Failures', 3);
+              partiallyFailed.forEach(repo => {
+                core.summary.addRaw(`\n**${repo.repo}** (${repo.errors.length} errors):\n`);
+                repo.errors.forEach(err => {
+                  core.summary.addRaw(`- ❌ ${err.operation} \`${err.label}\`: ${err.error}\n`);
+                });
+              });
+            }
+
+            if (reposWithCustomLabels.length > 0) {
+              core.summary.addHeading('Custom Labels Detected', 3);
+              reposWithCustomLabels.forEach(repo => {
+                core.summary.addRaw(`\n**${repo.repo}** (${repo.custom} custom):\n`);
+                repo.customLabels.forEach(label => {
+                  core.summary.addRaw(`- \`${label}\`\n`);
+                });
+              });
+            }
+
+            await core.summary.write();
+
+            if (dryRun) {
+              console.log('\n✅ Dry-run complete! Review the summary above to see what changes would be made.');
+            } else {
+              console.log('\n✅ Sync complete!');
+            }
