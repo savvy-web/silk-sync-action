@@ -6,9 +6,15 @@
 | --- | --- |
 | Latest | Yes |
 
+This project is pre-release (`0.x`). Only the latest version receives security
+fixes.
+
 ## Reporting a Vulnerability
 
-To report a security vulnerability, please email [security@savvyweb.systems](mailto:security@savvyweb.systems).
+To report a security vulnerability, please use one of the following methods:
+
+- **Preferred**: [GitHub Security Advisories](https://github.com/savvy-web/silk-sync-action/security/advisories/new)
+- **Email**: [security@savvyweb.systems](mailto:security@savvyweb.systems)
 
 Please include:
 
@@ -17,4 +23,11 @@ Please include:
 - Potential impact
 - Any suggested fixes (optional)
 
-We will acknowledge receipt within 72 hours and provide updates as we investigate. We appreciate responsible disclosure and will credit reporters in release notes unless anonymity is requested.
+## Response Timeline
+
+- **Acknowledgement**: Within 72 hours of receipt
+- **Initial assessment**: Within 1 week
+- **Resolution**: Dependent on severity and complexity
+
+We appreciate responsible disclosure and will credit reporters in release notes
+unless anonymity is requested.
