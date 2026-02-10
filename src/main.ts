@@ -13,10 +13,11 @@ import { context } from "@actions/github";
 import { NodeRuntime } from "@effect/platform-node";
 import { Effect } from "effect";
 
+import { loadAndValidateConfig } from "./lib/config/load.js";
 import { discoverRepos } from "./lib/discovery/index.js";
 import { aggregateStats, printConsoleSummary } from "./lib/reporting/console.js";
 import { writeStepSummary } from "./lib/reporting/summary.js";
-import type { ActionInputs, DiscoveredRepo, SilkConfig } from "./lib/schemas/index.js";
+import type { ActionInputs, DiscoveredRepo } from "./lib/schemas/index.js";
 import { makeAppLayer } from "./lib/services/index.js";
 import { processRepos } from "./lib/sync/index.js";
 import { resolveProjects } from "./lib/sync/projects.js";
@@ -46,9 +47,13 @@ const program = Effect.gen(function* () {
 		return;
 	}
 
-	const config: SilkConfig = JSON.parse(core.getState("config"));
 	const inputs: ActionInputs = JSON.parse(core.getState("inputs"));
 	const org = context.repo.owner;
+
+	// Load and validate config (deferred from pre step since repo isn't checked out until now)
+	core.info(`Loading config from ${inputs.configFile}...`);
+	const config = yield* loadAndValidateConfig(inputs.configFile);
+	core.info(`Config loaded: ${config.labels.length} labels, ${Object.keys(config.settings).length} settings`);
 
 	core.info(`Starting sync for ${org} (dry-run: ${inputs.dryRun})`);
 

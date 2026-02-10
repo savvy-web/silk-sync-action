@@ -1,9 +1,10 @@
 /**
- * Pre step: authentication, config validation, and input parsing.
+ * Pre step: authentication and input parsing.
  *
- * Runs before the main step. Generates a GitHub App installation token,
- * validates the config file, parses all inputs, and saves state for
- * the main and post steps. Fails fast on any validation error.
+ * Runs before the main step (and before checkout). Generates a GitHub
+ * App installation token, parses all inputs, and saves state for
+ * the main and post steps. Config loading is deferred to the main
+ * step since the repo is not yet checked out when pre runs.
  *
  * @module pre
  */
@@ -12,7 +13,6 @@ import * as core from "@actions/core";
 import { NodeRuntime } from "@effect/platform-node";
 import { Effect } from "effect";
 
-import { loadAndValidateConfig } from "./lib/config/load.js";
 import { generateInstallationToken } from "./lib/github/auth.js";
 import { parseInputs } from "./lib/inputs.js";
 
@@ -33,13 +33,6 @@ const program = Effect.gen(function* () {
 	core.setSecret(tokenInfo.token);
 
 	core.info(`Authenticated as "${tokenInfo.appSlug}" (expires: ${tokenInfo.expiresAt})`);
-
-	// 3. Validate config file
-	core.info(`Loading config from ${inputs.configFile}...`);
-	const config = yield* loadAndValidateConfig(inputs.configFile);
-	core.saveState("config", JSON.stringify(config));
-
-	core.info(`Config loaded: ${config.labels.length} labels, ${Object.keys(config.settings).length} settings`);
 	core.info("Pre step complete.");
 }).pipe(
 	Effect.catchAll((error) =>
