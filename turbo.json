@@ -2,46 +2,46 @@
 	"$schema": "https://turborepo.com/schema.v2.json",
 	"globalPassThroughEnv": ["GITHUB_ACTIONS", "CI"],
 	"tasks": {
-		"build:dev": {
-			"cache": true,
-			"dependsOn": ["types:check"],
-			"inputs": [
-				"$TURBO_DEFAULT$",
-				"$TURBO_ROOT$/package.json",
-				"$TURBO_ROOT$/pnpm-lock.yaml",
-				"$TURBO_ROOT$/pnpm-workspace.yaml",
-				"package.json",
-				"rslib.config.ts",
-				"tsconfig.json",
-				"src/**/*.ts",
-				"README.md",
-				"LICENSE"
-			],
-			"outputLogs": "full",
-			"outputs": ["dist/dev/**", ".rslib/declarations/dev/**"]
-		},
 		"build:prod": {
 			"cache": true,
-			"dependsOn": ["types:check"],
+			"dependsOn": ["types:check", "generate:schema"],
 			"inputs": [
 				"$TURBO_DEFAULT$",
 				"$TURBO_ROOT$/package.json",
 				"$TURBO_ROOT$/pnpm-lock.yaml",
 				"$TURBO_ROOT$/pnpm-workspace.yaml",
-				"package.json",
-				"rslib.config.ts",
-				"tsconfig.json",
+				"$TURBO_ROOT$/tsconfig.json",
+				"*.ts",
+				"lib/**/*.ts",
+				"lib/**/*.mts",
 				"src/**/*.ts",
+				"action.yml",
 				"README.md",
 				"LICENSE"
 			],
 			"outputLogs": "full",
-			"outputs": ["dist/npm/**", ".rslib/declarations/npm/**"]
+			"outputs": ["dist/**"]
+		},
+		"generate:schema": {
+			"cache": true,
+			"dependsOn": ["types:check"],
+			"inputs": ["src/lib/schemas/index.ts", "lib/scripts/generate-schema.ts"],
+			"outputs": ["silk.config.schema.json"]
 		},
 		"types:check": {
 			"cache": true,
 			"dependsOn": [],
-			"inputs": ["*.ts", "lib/**/*.ts", "lib/**/*.mts"],
+			"inputs": [
+				"$TURBO_DEFAULT$",
+				"$TURBO_ROOT$/package.json",
+				"$TURBO_ROOT$/pnpm-lock.yaml",
+				"$TURBO_ROOT$/pnpm-workspace.yaml",
+				"$TURBO_ROOT$/tsconfig.json",
+				"*.ts",
+				"lib/**/*.ts",
+				"lib/**/*.mts",
+				"src/**/*.ts"
+			],
 			"outputLogs": "errors-only",
 			"outputs": []
 		}

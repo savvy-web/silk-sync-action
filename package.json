@@ -4,10 +4,21 @@
 	"private": true,
 	"description": "GitHub Action to synchronize settings for repos using the Silk Suite system",
 	"homepage": "https://github.com/savvy-web/silk-sync-action#readme",
+	"bugs": {
+		"url": "https://github.com/savvy-web/silk-sync-action/issues"
+	},
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/savvy-web/silk-sync-action.git"
 	},
+	"keywords": [
+		"github-action",
+		"repository-settings",
+		"label-sync",
+		"github-projects",
+		"organization-management",
+		"silk-suite"
+	],
 	"license": "MIT",
 	"author": {
 		"name": "C. Spencer Beggs",
@@ -16,10 +27,11 @@
 	},
 	"type": "module",
 	"scripts": {
-		"build": "turbo run build:prod --log-order=grouped",
+		"build": "turbo run build:prod --log-order=grouped --log-prefix=none",
 		"build:inspect": "rslib inspect --config-loader native --env-mode npm --verbose",
 		"build:prod": "github-action-builder build",
-		"ci:build": "CI=\"true\" turbo run build:prod --log-order=grouped --output-logs=full",
+		"generate:schema": "node lib/scripts/generate-schema.ts && biome format --write silk.config.schema.json",
+		"ci:build": "CI=\"true\" turbo run build:prod --log-order=grouped --log-prefix=none --output-logs=full",
 		"ci:test": "CI=\"true\" vitest run --coverage",
 		"ci:version": "changeset version && biome format --write .",
 		"commit:check": "savvy-commit check",
@@ -43,6 +55,9 @@
 		"@savvy-web/github-action-builder": "^0.1.2",
 		"@savvy-web/lint-staged": "^0.3.2",
 		"@vitest/coverage-v8": "catalog:silk",
+		"@types/node": "catalog:silk",
+		"@typescript/native-preview": "catalog:silk",
+		"typescript": "catalog:silk",
 		"turbo": "catalog:silk",
 		"vitest": "catalog:silk"
 	},
@@ -81,5 +96,15 @@
 				"provenance": true
 			}
 		]
+	},
+	"dependencies": {
+		"@effect/platform": "^0.94.4",
+		"@effect/platform-node": "^0.104.1",
+		"@actions/core": "^3.0.0",
+		"@actions/github": "^9.0.0",
+		"@octokit/auth-app": "^8.2.0",
+		"@octokit/request": "^10.0.7",
+		"@octokit/rest": "^22.0.1",
+		"effect": "^3.19.16"
 	}
 }
