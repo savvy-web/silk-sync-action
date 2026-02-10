@@ -3,14 +3,6 @@
 	"version": "0.0.0",
 	"private": true,
 	"description": "GitHub Action to synchronize settings for repos using the Silk Suite system",
-	"homepage": "https://github.com/savvy-web/silk-sync-action#readme",
-	"bugs": {
-		"url": "https://github.com/savvy-web/silk-sync-action/issues"
-	},
-	"repository": {
-		"type": "git",
-		"url": "https://github.com/savvy-web/silk-sync-action.git"
-	},
 	"keywords": [
 		"github-action",
 		"repository-settings",
@@ -19,6 +11,14 @@
 		"organization-management",
 		"silk-suite"
 	],
+	"homepage": "https://github.com/savvy-web/silk-sync-action#readme",
+	"bugs": {
+		"url": "https://github.com/savvy-web/silk-sync-action/issues"
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/savvy-web/silk-sync-action.git"
+	},
 	"license": "MIT",
 	"author": {
 		"name": "C. Spencer Beggs",
@@ -30,12 +30,12 @@
 		"build": "turbo run build:prod --log-order=grouped --log-prefix=none",
 		"build:inspect": "rslib inspect --config-loader native --env-mode npm --verbose",
 		"build:prod": "github-action-builder build",
-		"generate:schema": "node lib/scripts/generate-schema.ts && biome format --write silk.config.schema.json",
 		"ci:build": "CI=\"true\" turbo run build:prod --log-order=grouped --log-prefix=none --output-logs=full",
 		"ci:test": "CI=\"true\" vitest run --coverage",
 		"ci:version": "changeset version && biome format --write .",
 		"commit:check": "savvy-commit check",
 		"commit:init": "savvy-commit init",
+		"generate:schema": "node lib/scripts/generate-schema.ts && biome format --write silk.config.schema.json",
 		"lint": "biome check --max-diagnostics=none",
 		"lint:fix": "biome check --write --max-diagnostics=none",
 		"lint:fix:unsafe": "biome check --write --unsafe --max-diagnostics=none",
@@ -49,16 +49,26 @@
 		"types:check": "tsgo --noEmit",
 		"validate": "github-action-builder validate"
 	},
+	"dependencies": {
+		"@actions/core": "^3.0.0",
+		"@actions/github": "^9.0.0",
+		"@effect/platform": "^0.94.4",
+		"@effect/platform-node": "^0.104.1",
+		"@octokit/auth-app": "^8.2.0",
+		"@octokit/request": "^10.0.7",
+		"@octokit/rest": "^22.0.1",
+		"effect": "^3.19.16"
+	},
 	"devDependencies": {
 		"@changesets/cli": "catalog:silk",
 		"@savvy-web/commitlint": "^0.3.1",
 		"@savvy-web/github-action-builder": "^0.1.2",
 		"@savvy-web/lint-staged": "^0.3.2",
-		"@vitest/coverage-v8": "catalog:silk",
 		"@types/node": "catalog:silk",
 		"@typescript/native-preview": "catalog:silk",
-		"typescript": "catalog:silk",
+		"@vitest/coverage-v8": "catalog:silk",
 		"turbo": "catalog:silk",
+		"typescript": "catalog:silk",
 		"vitest": "catalog:silk"
 	},
 	"packageManager": "pnpm@10.29.2+sha512.bef43fa759d91fd2da4b319a5a0d13ef7a45bb985a3d7342058470f9d2051a3ba8674e629672654686ef9443ad13a82da2beb9eeb3e0221c87b8154fff9d74b8",
@@ -96,15 +106,5 @@
 				"provenance": true
 			}
 		]
-	},
-	"dependencies": {
-		"@effect/platform": "^0.94.4",
-		"@effect/platform-node": "^0.104.1",
-		"@actions/core": "^3.0.0",
-		"@actions/github": "^9.0.0",
-		"@octokit/auth-app": "^8.2.0",
-		"@octokit/request": "^10.0.7",
-		"@octokit/rest": "^22.0.1",
-		"effect": "^3.19.16"
 	}
 }

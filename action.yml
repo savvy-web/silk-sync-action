@@ -16,16 +16,13 @@ inputs:
     required: true
     default: .github/silk.config.json
   custom-properties:
-    description: >-
-      Multiline key=value pairs for org custom property matching (AND logic).
-      Example:
+    description: |-
+      Multiline key=value pairs for org custom property matching (AND logic). Example:
         workflow=standard
         team=platform
     required: false
   repos:
-    description: >-
-      Multiline list of explicit repository names (one per line).
-      Supports bare names or owner/repo format.
+    description: Multiline list of explicit repository names (one per line). Supports bare names or owner/repo format.
     required: false
   dry-run:
     description: Preview changes without applying them
@@ -55,11 +52,9 @@ inputs:
     description: Skip revoking token in post step
     required: false
     default: "false"
-
 outputs:
-  token:
-    description: Generated GitHub App installation token
-
+  results:
+    description: JSON string with sync results including repo counts, label/settings/project statistics, and per-repo error details. Parse with fromJSON() for downstream use.
 runs:
   using: node24
   pre: dist/pre.js

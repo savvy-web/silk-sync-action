@@ -14,7 +14,7 @@ import { NodeRuntime } from "@effect/platform-node";
 import { Effect } from "effect";
 
 import { discoverRepos } from "./lib/discovery/index.js";
-import { printConsoleSummary } from "./lib/reporting/console.js";
+import { aggregateStats, printConsoleSummary } from "./lib/reporting/console.js";
 import { writeStepSummary } from "./lib/reporting/summary.js";
 import type { ActionInputs, DiscoveredRepo, SilkConfig } from "./lib/schemas/index.js";
 import { makeAppLayer } from "./lib/services/index.js";
@@ -80,14 +80,31 @@ const program = Effect.gen(function* () {
 		);
 
 		// 5. Set outputs
-		const succeeded = results.filter((r) => r.success).length;
-		const failed = results.filter((r) => !r.success).length;
-		core.setOutput("repos-processed", String(results.length));
-		core.setOutput("repos-succeeded", String(succeeded));
-		core.setOutput("repos-failed", String(failed));
+		const stats = aggregateStats(results);
+		const failedRepos = results.filter((r) => !r.success);
 
-		if (failed > 0) {
-			core.warning(`${failed} out of ${results.length} repos had errors`);
+		core.setOutput(
+			"results",
+			JSON.stringify({
+				success: failedRepos.length === 0,
+				dryRun: inputs.dryRun,
+				repos: {
+					total: stats.total,
+					succeeded: stats.succeeded,
+					failed: stats.failed,
+				},
+				labels: stats.labels,
+				settings: stats.settings,
+				projects: stats.projects,
+				errors: failedRepos.map((r) => ({
+					repo: `${r.owner}/${r.repo}`,
+					details: r.errors,
+				})),
+			}),
+		);
+
+		if (stats.failed > 0) {
+			core.warning(`${stats.failed} out of ${stats.total} repos had errors`);
 		}
 
 		core.info("Main step complete.");

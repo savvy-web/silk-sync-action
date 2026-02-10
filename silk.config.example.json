@@ -1,5 +1,5 @@
 {
-	"$schema": "./silk.config.schema.json",
+	"$schema": "https://raw.githubusercontent.com/savvy-web/silk-sync-action/main/silk.config.schema.json",
 	"labels": [
 		{
 			"name": "ai",

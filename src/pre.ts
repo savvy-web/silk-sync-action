@@ -31,7 +31,6 @@ const program = Effect.gen(function* () {
 	core.saveState("token", tokenInfo.token);
 	core.saveState("skipTokenRevoke", String(inputs.skipTokenRevoke));
 	core.setSecret(tokenInfo.token);
-	core.setOutput("token", tokenInfo.token);
 
 	core.info(`Authenticated as "${tokenInfo.appSlug}" (expires: ${tokenInfo.expiresAt})`);
 

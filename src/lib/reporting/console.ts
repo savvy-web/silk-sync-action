@@ -17,7 +17,7 @@ import type { RepoSyncResult } from "../schemas/index.js";
 // ---------------------------------------------------------------------------
 
 /** Aggregated statistics across all repos. */
-interface SyncStats {
+export interface SyncStats {
 	readonly total: number;
 	readonly succeeded: number;
 	readonly failed: number;
@@ -87,7 +87,7 @@ export function printConsoleSummary(results: ReadonlyArray<RepoSyncResult>, dryR
 // Internal
 // ---------------------------------------------------------------------------
 
-function aggregateStats(results: ReadonlyArray<RepoSyncResult>): SyncStats {
+export function aggregateStats(results: ReadonlyArray<RepoSyncResult>): SyncStats {
 	let labelsCreated = 0;
 	let labelsUpdated = 0;
 	let labelsRemoved = 0;
