@@ -93,9 +93,9 @@ phases are complete.
 
 **Key implementation files:**
 
-- `src/pre.ts` - Pre step: input validation, token generation, config
-  loading
-- `src/main.ts` - Main step: discovery, sync orchestration, reporting
+- `src/pre.ts` - Pre step: input validation, token generation
+- `src/main.ts` - Main step: config loading, discovery, sync
+  orchestration, reporting
 - `src/post.ts` - Post step: token revocation, duration logging
 - `src/lib/` - Core library modules (schemas, services, sync, etc.)
 - `action.yml` - Compiled action manifest (`node24` runtime)
@@ -108,13 +108,16 @@ Three-phase GitHub Action execution (pre -> main -> post):
 
 - **pre.ts:** Parse and validate all inputs via `@actions/core`. Generate
   a GitHub App installation token using `@octokit/auth-app` and
-  `@octokit/request`. Validate the config file against the `SilkConfig`
-  Effect Schema. Save token, config, and inputs to `core.saveState()`.
-  Fails fast on validation errors before any sync API calls.
-- **main.ts:** Retrieve token, config, and inputs from `core.getState()`.
+  `@octokit/request`. Save token and inputs to `core.saveState()`.
+  Fails fast on input validation or auth errors before any sync work.
+  Config loading is deferred to the main step because the pre step runs
+  before `actions/checkout`, so the config file is not yet on disk.
+- **main.ts:** Retrieve token and inputs from `core.getState()`. Load
+  and validate the config file against the `SilkConfig` Effect Schema.
   Create the combined service layer via `makeAppLayer(token)`. Discover
   repos via API. Resolve projects (GraphQL, cached). Process each repo
-  with error accumulation. Generate console summary + step summary.
+  with error accumulation. Generate console summary + step summary. Set
+  a structured `results` JSON output with aggregated statistics.
 - **post.ts:** Retrieve token and `skipTokenRevoke` from state. Revoke
   the GitHub App installation token (unless `skip-token-revoke` is set).
   Log total duration. Handles missing token gracefully (pre step may
@@ -198,10 +201,12 @@ authentication.
 
 **Why:**
 
-- **pre.ts:** Generates short-lived installation token + validates
-  config. Catches errors before any sync work begins.
-- **main.ts:** Uses token for all API operations. Clear separation
-  between setup and execution.
+- **pre.ts:** Validates inputs and generates short-lived installation
+  token. Runs before `actions/checkout`, so config loading is deferred.
+  Catches input and auth errors before any sync work begins.
+- **main.ts:** Loads config (now available after checkout), then uses
+  token for all API operations. Sets structured `results` JSON output.
+  Clear separation between setup and execution.
 - **post.ts:** Revokes token for security hygiene. Runs even if main
   fails.
 
@@ -313,7 +318,23 @@ merged as a union and deduplicated by full repo name.
 
 | Output | Description |
 | :----- | :---------- |
-| `token` | Generated GitHub App installation token |
+| `results` | JSON string with sync results (repo counts, label/settings/project statistics, per-repo error details). Parse with `fromJSON()` for downstream use. |
+
+The `results` output is set in `main.ts` using the exported
+`aggregateStats()` function from `src/lib/reporting/console.ts`. Its
+shape is:
+
+```json
+{
+  "success": true,
+  "dryRun": false,
+  "repos": { "total": 12, "succeeded": 11, "failed": 1 },
+  "labels": { "created": 4, "updated": 7, "removed": 0, "unchanged": 203, "customCount": 12 },
+  "settings": { "changed": 5, "reposWithDrift": 3 },
+  "projects": { "linked": 2, "alreadyLinked": 6, "itemsAdded": 14, "itemsAlreadyPresent": 89 },
+  "errors": [{ "repo": "owner/repo", "details": [...] }]
+}
+```
 
 **Example usage:**
 
@@ -362,24 +383,26 @@ merged as a union and deduplicated by full repo name.
 |  |  1. Parse + validate all inputs (core.getInput)               | |
 |  |  2. Generate GitHub App installation token                    | |
 |  |     (@octokit/auth-app + @octokit/request)                    | |
-|  |  3. Validate config-file against SilkConfig Effect Schema     | |
-|  |  4. Save token + config + inputs to core.saveState()          | |
+|  |  3. Save token + inputs to core.saveState()                   | |
+|  |  NOTE: Config loading deferred to main (repo not checked out) | |
 |  +---------------------------------------------------------------+ |
 |                              |                                     |
 |                              v                                     |
 |  MAIN (dist/main.js) -- NodeRuntime.runMain                        |
 |  +---------------------------------------------------------------+ |
-|  |  1. Retrieve token + config + inputs from core.getState()     | |
-|  |  2. Create service layer: makeAppLayer(token)                 | |
+|  |  1. Retrieve token + inputs from core.getState()              | |
+|  |  2. Load + validate config (SilkConfig Effect Schema)         | |
+|  |  3. Create service layer: makeAppLayer(token)                 | |
 |  |     (GitHubRestClient + GitHubGraphQLClient via Layer.mergeAll)| |
-|  |  3. Discover repos (custom properties AND/OR explicit list)   | |
-|  |  4. Resolve projects (GraphQL, in-memory cache)               | |
-|  |  5. For each repo (sequential, 1s delay):                     | |
+|  |  4. Discover repos (custom properties AND/OR explicit list)   | |
+|  |  5. Resolve projects (GraphQL, in-memory cache)               | |
+|  |  6. For each repo (sequential, 1s delay):                     | |
 |  |     a. Sync labels (create/update/remove)                     | |
 |  |     b. Sync settings (diff + PATCH only changed keys)         | |
 |  |     c. Link to project (GraphQL)                              | |
 |  |     d. Backfill issues/PRs (paginated, 100ms delay)           | |
-|  |  6. Generate console summary + step summary (core.summary)    | |
+|  |  7. Generate console summary + step summary (core.summary)    | |
+|  |  8. Set "results" output (structured JSON via aggregateStats) | |
 |  +---------------------------------------------------------------+ |
 |                              |                                     |
 |                              v                                     |
@@ -404,8 +427,8 @@ merged as a union and deduplicated by full repo name.
 
 ```text
 src/
-+-- pre.ts                        # Pre: input validation + token + config
-+-- main.ts                       # Main: orchestrates full sync
++-- pre.ts                        # Pre: input validation + token generation
++-- main.ts                       # Main: config loading + sync orchestration
 +-- post.ts                       # Post: token revocation + cleanup
 +-- lib/
     +-- config/
@@ -458,8 +481,10 @@ lib/
 
 #### `src/pre.ts` - Pre Step
 
-Parses inputs, generates token, validates config, and saves state.
-Uses `NodeRuntime.runMain()` from `@effect/platform-node`.
+Parses inputs, generates token, and saves state. Config loading is
+deferred to the main step because the pre step runs before
+`actions/checkout`, so the config file is not yet on disk. Uses
+`NodeRuntime.runMain()` from `@effect/platform-node`.
 
 ```typescript
 const program = Effect.gen(function* () {
@@ -475,11 +500,6 @@ const program = Effect.gen(function* () {
   core.saveState("token", tokenInfo.token);
   core.saveState("skipTokenRevoke", String(inputs.skipTokenRevoke));
   core.setSecret(tokenInfo.token);
-  core.setOutput("token", tokenInfo.token);
-
-  // 3. Validate config file
-  const config = yield* loadAndValidateConfig(inputs.configFile);
-  core.saveState("config", JSON.stringify(config));
 }).pipe(
   Effect.catchAll((error) =>
     Effect.sync(() => {
@@ -493,22 +513,28 @@ NodeRuntime.runMain(program);
 ```
 
 **Note:** The pre step validates inputs *first* (fail fast), then generates
-the token, then validates the config. This ordering ensures that
-obviously-invalid inputs (e.g. missing discovery method) are caught before
-any API calls are made.
+the token. Obviously-invalid inputs (e.g. missing discovery method) are
+caught before any API calls are made. Config loading was intentionally
+moved out of the pre step: the pre step runs before `actions/checkout`,
+so the repository (and config file) is not yet available. The token is
+no longer exposed as an output (removed for security -- unnecessary
+exposure of a short-lived credential).
 
 #### `src/main.ts` - Main Step
 
-Retrieves validated state, discovers repos, and runs the sync engine.
-The inner `Effect.gen` is provided the service layer via
-`Effect.provide(appLayer)`.
+Retrieves token and inputs from state, loads and validates the config
+file, discovers repos, runs the sync engine, and sets the structured
+`results` output. The inner `Effect.gen` is provided the service layer
+via `Effect.provide(appLayer)`.
 
 ```typescript
 const program = Effect.gen(function* () {
   const token = core.getState("token");
-  const config: SilkConfig = JSON.parse(core.getState("config"));
   const inputs: ActionInputs = JSON.parse(core.getState("inputs"));
   const org = context.repo.owner;
+
+  // Load config here (deferred from pre -- repo not checked out until now)
+  const config = yield* loadAndValidateConfig(inputs.configFile);
 
   const appLayer = makeAppLayer(token);
 
@@ -523,6 +549,18 @@ const program = Effect.gen(function* () {
     yield* Effect.promise(() =>
       writeStepSummary(results, projectCache, inputs.dryRun, ...),
     );
+
+    // Structured results output
+    const stats = aggregateStats(results);
+    core.setOutput("results", JSON.stringify({
+      success: failedRepos.length === 0,
+      dryRun: inputs.dryRun,
+      repos: { total: stats.total, succeeded: stats.succeeded, failed: stats.failed },
+      labels: stats.labels,
+      settings: stats.settings,
+      projects: stats.projects,
+      errors: failedRepos.map((r) => ({ repo: `${r.owner}/${r.repo}`, details: r.errors })),
+    }));
   }).pipe(
     Effect.provide(appLayer),
     Effect.catchAll((error) =>
@@ -537,7 +575,9 @@ NodeRuntime.runMain(program);
 **Note:** `extractProjectNumbers()` reads custom properties
 (`project-tracking`, `project-number`) from discovered repos to
 determine which projects to resolve. This is done in `main.ts` rather
-than in the discovery layer.
+than in the discovery layer. Config loading was moved here from the
+pre step because the pre step runs before `actions/checkout` and the
+config file is not yet on disk.
 
 #### `src/post.ts` - Post Step
 
@@ -722,9 +762,14 @@ Two reporting targets:
 
 ##### `console.ts` - Console Summary
 
-`printConsoleSummary(results, dryRun)` is a synchronous function (not
-an Effect) that aggregates stats across all `RepoSyncResult[]` and
-prints a formatted summary via `core.info()`:
+Exports two public items: `printConsoleSummary(results, dryRun)` and
+`aggregateStats(results)`. Both `aggregateStats` and the `SyncStats`
+interface are exported for reuse in `main.ts` to build the structured
+`results` JSON output.
+
+`printConsoleSummary` is a synchronous function (not an Effect) that
+calls `aggregateStats` internally and prints a formatted summary via
+`core.info()`:
 
 ```text
 ============================================================
@@ -947,7 +992,7 @@ error description to avoid shadowing the computed `get message()` getter.
 ```typescript
 export type ActionError =
   | InvalidInputError    // Fatal - fails in pre step
-  | ConfigLoadError      // Fatal - fails in pre step
+  | ConfigLoadError      // Fatal - fails in main step
   | AuthenticationError  // Fatal - fails in pre step
   | DiscoveryError       // Fatal - no repos found
   | GitHubApiError       // Per-operation
@@ -1076,7 +1121,7 @@ Raw GitHub API response types are defined as TypeScript interfaces in
 ### Main Sync Flow
 
 ```text
-PRE STEP:
+PRE STEP (runs before actions/checkout -- config file not on disk):
 [core.getInput("app-id", { required: true })]
 [core.getInput("app-private-key", { required: true })]
 [core.getInput("config-file", { required: true })]
@@ -1088,14 +1133,15 @@ PRE STEP:
 [generateInstallationToken] --> InstallationToken
       |                         (@octokit/auth-app + @octokit/request)
       v
-[loadAndValidateConfig] --> SilkConfig
-      |                     (Schema.decodeUnknownEither + ArrayFormatter)
-      v
-[core.saveState: token, config, inputs, startTime, skipTokenRevoke]
+[core.saveState: token, inputs, startTime, skipTokenRevoke]
+(NOTE: no config saved -- deferred to main step)
 
 MAIN STEP:
-[core.getState: token, config, inputs]
+[core.getState: token, inputs]
       |
+      v
+[loadAndValidateConfig(inputs.configFile)] --> SilkConfig
+      |                     (Schema.decodeUnknownEither + ArrayFormatter)
       v
 [makeAppLayer(token)] --> Layer<GitHubRestClient | GitHubGraphQLClient>
       |
@@ -1151,7 +1197,9 @@ MAIN STEP:
       v
 [printConsoleSummary] --> core.info (synchronous)
 [writeStepSummary] --> core.summary.write() (async, via Effect.promise)
-[core.setOutput: repos-processed, repos-succeeded, repos-failed]
+[aggregateStats(results)] --> SyncStats
+[core.setOutput("results", JSON.stringify({...}))]
+  +-- success, dryRun, repos, labels, settings, projects, errors
 ```
 
 ### Rate Limit Flow
@@ -1334,7 +1382,7 @@ yield* rest.updateRepo(owner, repo, settingsToApply).pipe(
 | Error Type | Severity | Behavior |
 | :--------- | :------- | :------- |
 | `InvalidInputError` | Fatal | Fail in pre step |
-| `ConfigLoadError` | Fatal | Fail in pre step |
+| `ConfigLoadError` | Fatal | Fail in main step (config loaded after checkout) |
 | `AuthenticationError` | Fatal | Fail in pre step |
 | `DiscoveryError` | Fatal | Fail in main (no repos found) |
 | `GitHubApiError (429)` | Transient | Detected via rate limit checks |
@@ -1497,8 +1545,8 @@ pnpm run validate       # github-action-builder validate (checks action.yml)
 
 - `action.yml` - Compiled action manifest (node24 runtime)
 - `silk.config.schema.json` - Generated JSON schema for config validation
-- `src/pre.ts` - Pre step: input validation + token + config
-- `src/main.ts` - Main step: sync orchestration
+- `src/pre.ts` - Pre step: input validation + token generation
+- `src/main.ts` - Main step: config loading + sync orchestration + results output
 - `src/post.ts` - Post step: token revocation
 
 **External Design Docs:**
@@ -1521,5 +1569,7 @@ pnpm run validate       # github-action-builder validate (checks action.yml)
 ---
 
 **Document Status:** Current - reflects the fully implemented compiled
-TypeScript action. All 8 implementation phases complete. Last synced
-with codebase on 2026-02-09.
+TypeScript action with config loading in main step (deferred from pre),
+structured `results` JSON output, and exported `aggregateStats`/`SyncStats`.
+All 8 implementation phases complete. Last synced with codebase on
+2026-02-09.
