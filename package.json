@@ -61,7 +61,7 @@
 	},
 	"devDependencies": {
 		"@changesets/cli": "catalog:silk",
-		"@savvy-web/commitlint": "^0.3.1",
+		"@savvy-web/commitlint": "^0.3.2",
 		"@savvy-web/github-action-builder": "^0.1.2",
 		"@savvy-web/lint-staged": "^0.4.0",
 		"@types/node": "catalog:silk",
