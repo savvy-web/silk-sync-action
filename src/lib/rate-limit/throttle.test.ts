@@ -70,4 +70,62 @@ describe("checkGraphQLRateLimit", () => {
 		const remaining = await Effect.runPromise(checkGraphQLRateLimit());
 		expect(remaining).toBe(Number.MAX_SAFE_INTEGER);
 	});
+
+	it("returns MAX_SAFE_INTEGER when API call fails", async () => {
+		const layer = makeMockRestLayer({
+			getRateLimit: () => Effect.fail(new GitHubApiError({ operation: "rateLimit", reason: "fail" })),
+		});
+
+		const remaining = await Effect.runPromise(checkGraphQLRateLimit().pipe(Effect.provide(layer)));
+		expect(remaining).toBe(Number.MAX_SAFE_INTEGER);
+	});
+
+	it("pauses when GraphQL rate limit is low", async () => {
+		vi.useFakeTimers();
+		const layer = makeMockRestLayer({
+			getRateLimit: () =>
+				Effect.succeed({
+					core: { remaining: 5000, reset: Math.floor(Date.now() / 1000) + 3600 },
+					graphql: { remaining: 50, reset: Math.floor(Date.now() / 1000) + 3600 },
+				}),
+		});
+
+		const promise = Effect.runPromise(checkGraphQLRateLimit().pipe(Effect.provide(layer)));
+		await vi.advanceTimersByTimeAsync(30_000);
+		const remaining = await promise;
+		expect(remaining).toBe(50);
+		vi.useRealTimers();
+	});
+});
+
+describe("checkRestRateLimit thresholds", () => {
+	it("warns when REST rate limit is low", async () => {
+		const layer = makeMockRestLayer({
+			getRateLimit: () =>
+				Effect.succeed({
+					core: { remaining: 75, reset: Math.floor(Date.now() / 1000) + 3600 },
+					graphql: { remaining: 5000, reset: Math.floor(Date.now() / 1000) + 3600 },
+				}),
+		});
+
+		const remaining = await Effect.runPromise(checkRestRateLimit().pipe(Effect.provide(layer)));
+		expect(remaining).toBe(75);
+	});
+
+	it("pauses when REST rate limit is critically low", async () => {
+		vi.useFakeTimers();
+		const layer = makeMockRestLayer({
+			getRateLimit: () =>
+				Effect.succeed({
+					core: { remaining: 30, reset: Math.floor(Date.now() / 1000) + 3600 },
+					graphql: { remaining: 5000, reset: Math.floor(Date.now() / 1000) + 3600 },
+				}),
+		});
+
+		const promise = Effect.runPromise(checkRestRateLimit().pipe(Effect.provide(layer)));
+		await vi.advanceTimersByTimeAsync(60_000);
+		const remaining = await promise;
+		expect(remaining).toBe(30);
+		vi.useRealTimers();
+	});
 });

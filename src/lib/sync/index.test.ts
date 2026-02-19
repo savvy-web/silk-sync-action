@@ -109,4 +109,65 @@ describe("processRepos", () => {
 
 		expect(updateRepoCalled).toBe(false);
 	});
+
+	it("syncs projects when enabled with project tracking", async () => {
+		const projectCache: ProjectCache = new Map();
+		projectCache.set(5, { ok: true, project: { id: "PVT_5", title: "Board", number: 5, closed: false } });
+
+		const layer = makeMockLayer(
+			{
+				listLabels: () => Effect.succeed([]),
+			},
+			{
+				linkRepoToProject: () => Effect.void,
+				addItemToProject: () => Effect.void,
+			},
+		);
+
+		const repoWithProject: DiscoveredRepo = {
+			...makeRepo("tracked"),
+			customProperties: { "project-tracking": "true", "project-number": "5" },
+		};
+
+		const projectInputs = { ...inputs, syncProjects: true, skipBackfill: true };
+		const results = await Effect.runPromise(
+			processRepos([repoWithProject], config, projectCache, projectInputs).pipe(Effect.provide(layer)),
+		);
+
+		expect(results[0].projectNumber).toBe(5);
+		expect(results[0].projectTitle).toBe("Board");
+	});
+
+	it("returns null for invalid project numbers", async () => {
+		const layer = makeMockLayer({ listLabels: () => Effect.succeed([]) });
+
+		const repoWithBadProject: DiscoveredRepo = {
+			...makeRepo("bad-proj"),
+			customProperties: { "project-tracking": "true", "project-number": "not-a-number" },
+		};
+
+		const projectInputs = { ...inputs, syncProjects: true };
+		const results = await Effect.runPromise(
+			processRepos([repoWithBadProject], config, emptyProjectCache, projectInputs).pipe(Effect.provide(layer)),
+		);
+
+		expect(results[0].projectNumber).toBe(null);
+	});
+
+	it("returns null when project-tracking is not true", async () => {
+		const layer = makeMockLayer({ listLabels: () => Effect.succeed([]) });
+
+		const repoNoTracking: DiscoveredRepo = {
+			...makeRepo("no-track"),
+			customProperties: { "project-tracking": "false", "project-number": "5" },
+		};
+
+		const results = await Effect.runPromise(
+			processRepos([repoNoTracking], config, emptyProjectCache, { ...inputs, syncProjects: true }).pipe(
+				Effect.provide(layer),
+			),
+		);
+
+		expect(results[0].projectNumber).toBe(null);
+	});
 });

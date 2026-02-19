@@ -159,4 +159,74 @@ describe("writeStepSummary", () => {
 		await writeStepSummary([makeResult()], emptyCache, false, false, false, false, false);
 		expect(core.summary.write).toHaveBeenCalled();
 	});
+
+	it("shows removed labels count when removeCustomLabels is true", async () => {
+		clearBuffer();
+		await writeStepSummary([makeResult()], emptyCache, false, false, false, false, true);
+		const buf = getBuffer().join("");
+		expect(buf).toContain("removed");
+	});
+
+	it("shows failed project cache entries", async () => {
+		clearBuffer();
+		const cache: ProjectCache = new Map();
+		cache.set(99, { ok: false, error: "Project not found" });
+
+		await writeStepSummary(
+			[makeResult({ projectNumber: 99, projectTitle: null, projectLinkStatus: "skipped" })],
+			cache,
+			false,
+			false,
+			true,
+			false,
+			false,
+		);
+		const buf = getBuffer().join("");
+		expect(buf).toContain("Project not found");
+	});
+
+	it("shows backfill stats when not skipped", async () => {
+		clearBuffer();
+		const cache: ProjectCache = new Map();
+		cache.set(1, { ok: true, project: { id: "PVT_1", title: "Board", number: 1, closed: false } });
+
+		await writeStepSummary(
+			[
+				makeResult({
+					projectNumber: 1,
+					projectTitle: "Board",
+					projectLinkStatus: "already",
+					itemsAdded: 3,
+					itemsAlreadyPresent: 7,
+				}),
+			],
+			cache,
+			false,
+			false,
+			true,
+			false,
+			false,
+		);
+		const buf = getBuffer().join("");
+		expect(buf).toContain("already linked");
+		expect(buf).toContain("Items added");
+	});
+
+	it("skips backfill stats when skipBackfill is true", async () => {
+		clearBuffer();
+		const cache: ProjectCache = new Map();
+		cache.set(1, { ok: true, project: { id: "PVT_1", title: "Board", number: 1, closed: false } });
+
+		await writeStepSummary(
+			[makeResult({ projectNumber: 1, projectTitle: "Board", projectLinkStatus: "linked" })],
+			cache,
+			false,
+			false,
+			true,
+			true,
+			false,
+		);
+		const buf = getBuffer().join("");
+		expect(buf).not.toContain("Items added");
+	});
 });
