@@ -17,7 +17,7 @@
 	},
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/savvy-web/silk-sync-action.git"
+		"url": "git+https://github.com/savvy-web/silk-sync-action.git"
 	},
 	"license": "MIT",
 	"author": {
