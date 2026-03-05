@@ -1,0 +1,62 @@
+name: Silk Sync Action
+description: Synchronize repository labels, settings, and GitHub Projects V2 across an organization
+author: Savvy Web
+branding:
+  icon: package
+  color: yellow
+inputs:
+  app-id:
+    description: GitHub App ID for authentication
+    required: true
+  app-private-key:
+    description: GitHub App private key (PEM format)
+    required: true
+  config-file:
+    description: Path to JSON config file (labels + settings)
+    required: true
+    default: .github/silk.config.json
+  custom-properties:
+    description: |-
+      Multiline key=value pairs for org custom property matching (AND logic). Example:
+        workflow=standard
+        team=platform
+    required: false
+  repos:
+    description: Multiline list of explicit repository names (one per line). Supports bare names or owner/repo format.
+    required: false
+  dry-run:
+    description: Preview changes without applying them
+    required: false
+    default: "false"
+  remove-custom-labels:
+    description: Remove labels not in config defaults
+    required: false
+    default: "false"
+  sync-settings:
+    description: Sync repository settings
+    required: false
+    default: "true"
+  sync-projects:
+    description: Sync project linking and backfill
+    required: false
+    default: "true"
+  skip-backfill:
+    description: Link repos to projects only, skip adding items
+    required: false
+    default: "false"
+  log-level:
+    description: Logging verbosity (info or debug)
+    required: false
+    default: info
+  skip-token-revoke:
+    description: Skip revoking token in post step
+    required: false
+    default: "false"
+outputs:
+  results:
+    description: JSON string with sync results including repo counts, label/settings/project statistics, and per-repo error details. Parse with fromJSON() for downstream use.
+runs:
+  using: node24
+  pre: dist/pre.js
+  main: dist/main.js
+  post: dist/post.js
