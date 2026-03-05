@@ -38,7 +38,7 @@
 		"lint": "biome check --max-diagnostics=none",
 		"lint:fix": "biome check --write --max-diagnostics=none",
 		"lint:fix:unsafe": "biome check --write --unsafe --max-diagnostics=none",
-		"lint:md": "markdownlint-cli2 '**/*.{md,mdx}' --config './lib/configs/.markdownlint-cli2.jsonc'",
+		"lint:md": "markdownlint-cli2 --config './lib/configs/.markdownlint-cli2.jsonc'",
 		"lint:md:fix": "markdownlint-cli2  --config './lib/configs/.markdownlint-cli2.jsonc' --fix",
 		"prepare": "husky",
 		"test": "vitest run --pass-with-no-tests",
@@ -59,9 +59,9 @@
 		"effect": "^3.19.16"
 	},
 	"devDependencies": {
-		"@savvy-web/changesets": "^0.4.1",
+		"@savvy-web/changesets": "^0.4.2",
 		"@savvy-web/commitlint": "^0.4.0",
-		"@savvy-web/github-action-builder": "^0.2.0",
+		"@savvy-web/github-action-builder": "^0.2.1",
 		"@savvy-web/lint-staged": "^0.5.0",
 		"@savvy-web/vitest": "^0.2.0"
 	},
