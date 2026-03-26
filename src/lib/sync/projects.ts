@@ -115,7 +115,7 @@ export function syncProject(
 	return Effect.gen(function* () {
 		const entry = projectCache.get(projectNumber);
 
-		if (!entry || !entry.ok) {
+		if (!entry?.ok) {
 			const reason = entry ? entry.error : "Project not resolved";
 			info(`  Skipping project sync: ${reason}`);
 			return { projectTitle: null, linkStatus: "skipped" as const, itemsAdded: 0, itemsAlreadyPresent: 0 };

@@ -156,4 +156,49 @@ describe("syncLabels", () => {
 		expect(result.results).toHaveLength(2);
 		expect(result.results.every((r) => r.operation === "created")).toBe(true);
 	});
+
+	it("handles createLabel API failure gracefully", async () => {
+		const layer = makeMockRestLayer({
+			listLabels: () => Effect.succeed([]),
+			createLabel: () => Effect.fail(new GitHubApiError({ operation: "createLabel", reason: "422 Unprocessable" })),
+		});
+
+		const result = await Effect.runPromise(
+			syncLabels("org", "repo", [desiredLabels[0]], false, false).pipe(Effect.provide(layer)),
+		);
+
+		// Error is caught internally; result still includes the label
+		expect(result.results).toHaveLength(1);
+	});
+
+	it("handles updateLabel API failure gracefully", async () => {
+		const layer = makeMockRestLayer({
+			listLabels: () => Effect.succeed([{ id: 1, name: "bug", description: "Bug report", color: "000000" }]),
+			updateLabel: () => Effect.fail(new GitHubApiError({ operation: "updateLabel", reason: "422 Unprocessable" })),
+		});
+
+		const result = await Effect.runPromise(
+			syncLabels("org", "repo", [desiredLabels[0]], false, false).pipe(Effect.provide(layer)),
+		);
+
+		expect(result.results).toHaveLength(1);
+	});
+
+	it("handles deleteLabel API failure gracefully", async () => {
+		const layer = makeMockRestLayer({
+			listLabels: () =>
+				Effect.succeed([
+					{ id: 1, name: "bug", description: "Bug report", color: "d73a4a" },
+					{ id: 99, name: "stale", description: "Old", color: "ffffff" },
+				]),
+			deleteLabel: () => Effect.fail(new GitHubApiError({ operation: "deleteLabel", reason: "404 Not Found" })),
+		});
+
+		const result = await Effect.runPromise(
+			syncLabels("org", "repo", [desiredLabels[0]], false, true).pipe(Effect.provide(layer)),
+		);
+
+		// Delete error is caught; result still includes entries
+		expect(result.results.length).toBeGreaterThan(0);
+	});
 });
