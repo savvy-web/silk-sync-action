@@ -1,5 +1,25 @@
 # @savvy-web/pnpm-module-template
 
+## 0.1.4
+
+### Dependencies
+
+* | [`612d2b7`](https://github.com/savvy-web/silk-sync-action/commit/612d2b7d624c4964c1bf4f35aa4b893e84c48d72) | Dependency | Type    | Action | From   | To |
+  | :--------------------------------------------------------------------------------------------------------- | :--------- | :------ | :----- | :----- | -- |
+  | @savvy-web/changesets                                                                                      | dependency | updated | ^0.4.2 | ^0.5.3 |    |
+  | @savvy-web/commitlint                                                                                      | dependency | updated | ^0.4.0 | ^0.4.2 |    |
+  | @savvy-web/github-action-builder                                                                           | dependency | updated | ^0.2.1 | ^0.4.0 |    |
+  | @savvy-web/lint-staged                                                                                     | dependency | updated | ^0.5.0 | ^0.6.1 |    |
+  | @savvy-web/vitest                                                                                          | dependency | updated | ^0.2.0 | ^0.2.2 |    |
+
+- | [`bac8b5c`](https://github.com/savvy-web/silk-sync-action/commit/bac8b5cbb4e94a716b478bd4261c181b2a1b608e) | Dependency    | Type    | Action | From   | To |
+  | :--------------------------------------------------------------------------------------------------------- | :------------ | :------ | :----- | :----- | -- |
+  | @savvy-web/changesets                                                                                      | devDependency | updated | ^0.5.3 | ^0.7.0 |    |
+  | @savvy-web/commitlint                                                                                      | devDependency | updated | ^0.4.2 | ^0.4.3 |    |
+  | @savvy-web/github-action-builder                                                                           | devDependency | updated | ^0.4.0 | ^0.6.0 |    |
+  | @savvy-web/lint-staged                                                                                     | devDependency | updated | ^0.6.1 | ^0.6.4 |    |
+  | @savvy-web/vitest                                                                                          | devDependency | updated | ^0.2.2 | ^1.0.1 |    |
+
 ## 0.1.3
 
 ### Dependencies
