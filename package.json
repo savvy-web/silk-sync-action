@@ -51,8 +51,8 @@
 	"dependencies": {
 		"@actions/core": "^3.0.0",
 		"@actions/github": "^9.0.0",
-		"@effect/platform": "^0.94.4",
-		"@effect/platform-node": "^0.104.1",
+		"@effect/platform": "^0.96.0",
+		"@effect/platform-node": "^0.106.0",
 		"@octokit/auth-app": "^8.2.0",
 		"@octokit/request": "^10.0.7",
 		"@octokit/rest": "^22.0.1",
@@ -61,7 +61,7 @@
 	"devDependencies": {
 		"@savvy-web/changesets": "^0.7.0",
 		"@savvy-web/commitlint": "^0.4.3",
-		"@savvy-web/github-action-builder": "^0.6.0",
+		"@savvy-web/github-action-builder": "^0.6.1",
 		"@savvy-web/lint-staged": "^0.6.4",
 		"@savvy-web/vitest": "^1.0.1"
 	},
