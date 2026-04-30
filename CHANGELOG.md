@@ -1,5 +1,58 @@
 # @savvy-web/pnpm-module-template
 
+## 0.1.5
+
+### Dependencies
+
+* | [`d5d8e39`](https://github.com/savvy-web/silk-sync-action/commit/d5d8e39ddfe385cdb36b04475dc64e05c50fc56c) | Dependency    | Type    | Action | From   | To |
+  | :--------------------------------------------------------------------------------------------------------- | :------------ | :------ | :----- | :----- | -- |
+  | @savvy-web/changesets                                                                                      | devDependency | updated | ^0.7.4 | ^0.8.0 |    |
+  | @savvy-web/commitlint                                                                                      | devDependency | updated | ^0.5.2 | ^0.6.0 |    |
+  | @savvy-web/lint-staged                                                                                     | devDependency | updated | ^0.7.3 | ^0.8.0 |    |
+  | @savvy-web/vitest                                                                                          | devDependency | updated | ^1.2.2 | ^1.3.0 |    |
+
+- | [`48867ac`](https://github.com/savvy-web/silk-sync-action/commit/48867ac73d5c59192b3f80db8face9193cc0754a) | Dependency    | Type    | Action | From   | To |
+  | :--------------------------------------------------------------------------------------------------------- | :------------ | :------ | :----- | :----- | -- |
+  | @savvy-web/lint-staged                                                                                     | devDependency | updated | ^0.6.5 | ^0.6.6 |    |
+
+* | [`716579d`](https://github.com/savvy-web/silk-sync-action/commit/716579d280def5222d77d0feddfbfd9762a49a00) | Dependency    | Type    | Action | From   | To |
+  | :--------------------------------------------------------------------------------------------------------- | :------------ | :------ | :----- | :----- | -- |
+  | @savvy-web/lint-staged                                                                                     | devDependency | updated | ^0.8.0 | ^1.0.0 |    |
+
+- | [`5250b7a`](https://github.com/savvy-web/silk-sync-action/commit/5250b7ad560bf98d1b7c5c2d0aa98c3ffcd41d97) | Dependency    | Type    | Action | From   | To |
+  | :--------------------------------------------------------------------------------------------------------- | :------------ | :------ | :----- | :----- | -- |
+  | @savvy-web/changesets                                                                                      | devDependency | updated | ^0.7.0 | ^0.7.1 |    |
+  | @savvy-web/commitlint                                                                                      | devDependency | updated | ^0.4.3 | ^0.4.4 |    |
+  | @savvy-web/github-action-builder                                                                           | devDependency | updated | ^0.6.0 | ^0.6.2 |    |
+  | @savvy-web/lint-staged                                                                                     | devDependency | updated | ^0.6.4 | ^0.6.5 |    |
+  | @savvy-web/vitest                                                                                          | devDependency | updated | ^1.0.1 | ^1.1.0 |    |
+
+* | [`878185c`](https://github.com/savvy-web/silk-sync-action/commit/878185cdcfc6d20d768c63772f5ae5135bdba885) | Dependency    | Type    | Action | From   | To |
+  | :--------------------------------------------------------------------------------------------------------- | :------------ | :------ | :----- | :----- | -- |
+  | @savvy-web/github-action-builder                                                                           | devDependency | updated | ^0.6.2 | ^0.6.3 |    |
+  | @savvy-web/vitest                                                                                          | devDependency | updated | ^1.3.0 | ^1.3.1 |    |
+
+- | [`9e59c1e`](https://github.com/savvy-web/silk-sync-action/commit/9e59c1eed54c93660b567a18db0495d9ae50b2cb) | Dependency    | Type    | Action | From   | To |
+  | :--------------------------------------------------------------------------------------------------------- | :------------ | :------ | :----- | :----- | -- |
+  | @savvy-web/changesets                                                                                      | devDependency | updated | ^0.7.2 | ^0.7.3 |    |
+  | @savvy-web/commitlint                                                                                      | devDependency | updated | ^0.5.0 | ^0.5.1 |    |
+  | @savvy-web/lint-staged                                                                                     | devDependency | updated | ^0.7.0 | ^0.7.1 |    |
+  | @savvy-web/vitest                                                                                          | devDependency | updated | ^1.2.0 | ^1.2.1 |    |
+
+* | [`85c9ed3`](https://github.com/savvy-web/silk-sync-action/commit/85c9ed33e9751cdb669a8fa5ea98a41502afede4) | Dependency    | Type    | Action | From   | To |
+  | :--------------------------------------------------------------------------------------------------------- | :------------ | :------ | :----- | :----- | -- |
+  | @savvy-web/changesets                                                                                      | devDependency | updated | ^0.7.1 | ^0.7.2 |    |
+  | @savvy-web/commitlint                                                                                      | devDependency | updated | ^0.4.4 | ^0.5.0 |    |
+  | @savvy-web/lint-staged                                                                                     | devDependency | updated | ^0.6.6 | ^0.7.0 |    |
+  | @savvy-web/vitest                                                                                          | devDependency | updated | ^1.1.0 | ^1.2.0 |    |
+
+- | [`cba6132`](https://github.com/savvy-web/silk-sync-action/commit/cba6132f4a5ef70501a15019078adc671ce647fe) | Dependency    | Type    | Action | From   | To |
+  | :--------------------------------------------------------------------------------------------------------- | :------------ | :------ | :----- | :----- | -- |
+  | @savvy-web/changesets                                                                                      | devDependency | updated | ^0.7.3 | ^0.7.4 |    |
+  | @savvy-web/commitlint                                                                                      | devDependency | updated | ^0.5.1 | ^0.5.2 |    |
+  | @savvy-web/lint-staged                                                                                     | devDependency | updated | ^0.7.1 | ^0.7.3 |    |
+  | @savvy-web/vitest                                                                                          | devDependency | updated | ^1.2.1 | ^1.2.2 |    |
+
 ## 0.1.4
 
 ### Dependencies
