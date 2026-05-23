@@ -19,7 +19,7 @@ GitHub App and let every targeted repo converge to the same standard.
 ```yaml
 - uses: savvy-web/silk-sync-action@main
   with:
-    app-id: ${{ secrets.APP_ID }}
+    app-client-id: ${{ vars.APP_CLIENT_ID }}
     app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
     config-file: .github/silk.config.json
     custom-properties: |
@@ -66,7 +66,7 @@ jobs:
 
       - uses: savvy-web/silk-sync-action@v1
         with:
-          app-id: ${{ secrets.APP_ID }}
+          app-client-id: ${{ vars.APP_CLIENT_ID }}
           app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
           config-file: .github/silk.config.json
           dry-run: ${{ inputs.dry-run || 'false' }}
@@ -211,7 +211,7 @@ Use it in downstream steps, for example to send a Slack notification:
 - uses: savvy-web/silk-sync-action@main
   id: silk
   with:
-    app-id: ${{ secrets.APP_ID }}
+    app-client-id: ${{ vars.APP_CLIENT_ID }}
     app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
     config-file: .github/silk.config.json
     custom-properties: |
