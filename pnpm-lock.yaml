@@ -12,7 +12,7 @@ overrides:
   smol-toml: '>=1.6.1'
   tmp: ^0.2.4
 
-pnpmfileChecksum: sha256-qvdCCa72IufQV7GlA20Wd6Leo7yHiU/ZQZciNTWkhM4=
+pnpmfileChecksum: sha256-j7znAYbhzZYspyktgYO/HLTxIJEXL9UtQHx5IyS1XF0=
 
 importers:
 
@@ -53,8 +53,8 @@ importers:
         specifier: ^0.7.1
         version: 0.7.1(@effect/cluster@0.58.2(@effect/platform@0.96.1(effect@3.21.2))(@effect/rpc@0.75.1(@effect/platform@0.96.1(effect@3.21.2))(effect@3.21.2))(@effect/sql@0.51.1(@effect/experimental@0.60.0(@effect/platform@0.94.5(effect@3.21.2))(effect@3.21.2))(@effect/platform@0.94.5(effect@3.21.2))(effect@3.21.2))(@effect/workflow@0.18.1(@effect/experimental@0.60.0(@effect/platform@0.94.5(effect@3.21.2))(effect@3.21.2))(@effect/platform@0.94.5(effect@3.21.2))(@effect/rpc@0.75.1(@effect/platform@0.96.1(effect@3.21.2))(effect@3.21.2))(effect@3.21.2))(effect@3.21.2))(@effect/rpc@0.75.1(@effect/platform@0.96.1(effect@3.21.2))(effect@3.21.2))(@effect/sql@0.51.1(@effect/experimental@0.60.0(@effect/platform@0.94.5(effect@3.21.2))(effect@3.21.2))(@effect/platform@0.94.5(effect@3.21.2))(effect@3.21.2))(@types/node@25.6.0)(@typescript/native-preview@7.0.0-dev.20260424.2)(core-js@3.47.0)(typescript@6.0.3)
       '@savvy-web/lint-staged':
-        specifier: ^1.0.1
-        version: 1.0.1(2d4c8c8aee0253dc6bfa666e04ac18b6)
+        specifier: ^1.1.0
+        version: 1.1.0(2d4c8c8aee0253dc6bfa666e04ac18b6)
       '@savvy-web/vitest':
         specifier: ^1.3.2
         version: 1.3.2(f71e0f2b708405ceafc09fbd165bdd79)
@@ -834,19 +834,19 @@ packages:
       '@typescript/native-preview': ^7.0.0-dev.20260513.1
       typescript: ^6.0.0
 
-  '@savvy-web/lint-staged@1.0.1':
-    resolution: {integrity: sha512-JELWQGKusQcgIMYg7izh6oFr/4tGbFZjHRgMIA4MRJCUTphxsmX/9tlLB1zOxSatxHaQqu4Cir7MEYzuRHkOfQ==}
+  '@savvy-web/lint-staged@1.1.0':
+    resolution: {integrity: sha512-Mgzd1refMWa6i2p7HhJf4ZXLhfDz6pfRQfDzK8hGKenvP8KegMkrEK5l9Pb70/vYc3I/My/Mwm+xlvWCMkTQlg==}
     engines: {node: '>=24.0.0'}
     hasBin: true
     peerDependencies:
       '@biomejs/biome': 2.4.15
       '@types/node': ^25.6.0
       '@typescript/native-preview': ^7.0.0-dev.20260513.1
-      husky: ^9.1.0
-      lint-staged: ^16.4.0
-      markdownlint-cli2: ^0.22.0
+      husky: ^9.1.7
+      lint-staged: ^17.0.5
+      markdownlint-cli2: ^0.22.1
       markdownlint-cli2-formatter-codequality: ^0.0.7
-      turbo: ^2.9.0
+      turbo: ^2.9.14
       typescript: ^6.0.0
     peerDependenciesMeta:
       '@biomejs/biome':
@@ -4131,7 +4131,7 @@ snapshots:
       - core-js
       - utf-8-validate
 
-  '@savvy-web/lint-staged@1.0.1(2d4c8c8aee0253dc6bfa666e04ac18b6)':
+  '@savvy-web/lint-staged@1.1.0(2d4c8c8aee0253dc6bfa666e04ac18b6)':
     dependencies:
       '@effect/cli': 0.75.1(@effect/platform@0.96.1(effect@3.21.2))(@effect/printer-ansi@0.49.0(@effect/typeclass@0.40.0(effect@3.21.2))(effect@3.21.2))(@effect/printer@0.49.0(@effect/typeclass@0.40.0(effect@3.21.2))(effect@3.21.2))(effect@3.21.2)
       '@effect/platform': 0.96.1(effect@3.21.2)
@@ -5289,7 +5289,7 @@ snapshots:
       picomatch: 4.0.4
       string-argv: 0.3.2
       tinyexec: 1.1.1
-      yaml: 2.8.3
+      yaml: 2.9.0
 
   listr2@9.0.5:
     dependencies:
