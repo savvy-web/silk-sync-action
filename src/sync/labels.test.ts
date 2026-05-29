@@ -50,4 +50,24 @@ describe("syncLabels", () => {
 		const { results } = await run([], { dryRun: true, removeCustom: false });
 		expect(results.filter((r) => r.operation === "created")).toHaveLength(2);
 	});
+
+	it("records an error and does not report success when a label API call fails", async () => {
+		// No "issues.createLabel" response seeded -> the create call fails.
+		const layer = GitHubClientTest.layer({
+			restResponses: new Map(),
+			graphqlResponses: new Map(),
+			paginateResponses: new Map([["issues.listLabelsForRepo", [[]]]]),
+			repo: { owner: "o", repo: "r" },
+		});
+		const { results, errors } = await syncLabels("o", "r", desired, false, false).pipe(
+			Effect.provide(layer),
+			Effect.provide(Logger.replace(Logger.defaultLogger, Logger.none)),
+			Effect.runPromise,
+		);
+		// Both creates fail: no "created" results, two recorded errors.
+		expect(results.filter((r) => r.operation === "created")).toHaveLength(0);
+		expect(errors).toHaveLength(2);
+		expect(errors.every((e) => e.operation === "create")).toBe(true);
+		expect(errors.map((e) => e.target).sort()).toEqual(["bug", "feature"]);
+	});
 });

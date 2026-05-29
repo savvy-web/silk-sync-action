@@ -47,6 +47,7 @@ export const syncRepo = (
 			inputs.dryRun,
 			inputs.removeCustomLabels,
 		);
+		errors.push(...labelResult.errors);
 
 		let settings: { changes: ReadonlyArray<SettingChange>; applied: boolean } = { changes: [], applied: true };
 		if (inputs.syncSettings && repoData)

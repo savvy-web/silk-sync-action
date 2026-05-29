@@ -87,6 +87,13 @@ export const syncProject = (
 		const gql = yield* GitHubGraphQL;
 		const { project } = entry;
 
+		// A missing repository node ID would otherwise surface as a cryptic
+		// "Could not resolve to a node" GraphQL error — fail with a clear message.
+		if (repoNodeId === "") {
+			yield* Effect.logWarning(`Skipping project link for ${owner}/${repo}: missing repository node ID`);
+			return { projectTitle: project.title, linkStatus: "error" as const, itemsAdded: 0, itemsAlreadyPresent: 0 };
+		}
+
 		let linkStatus: "linked" | "already" | "dry-run" | "error";
 		if (dryRun) linkStatus = "dry-run";
 		else

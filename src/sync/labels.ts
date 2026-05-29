@@ -2,7 +2,7 @@ import type { GitHubClient } from "@savvy-web/github-action-effects";
 import { Effect } from "effect";
 import type { GitHubLabel } from "../github/reads.js";
 import { createLabel, deleteLabel, listLabels, updateLabel } from "../github/reads.js";
-import type { LabelDefinition, LabelResult } from "../schemas.js";
+import type { LabelDefinition, LabelResult, SyncErrorRecord } from "../schemas.js";
 
 export const syncLabels = (
 	owner: string,
@@ -10,7 +10,11 @@ export const syncLabels = (
 	desiredLabels: ReadonlyArray<LabelDefinition>,
 	dryRun: boolean,
 	removeCustom: boolean,
-): Effect.Effect<{ results: ReadonlyArray<LabelResult>; customLabels: ReadonlyArray<string> }, never, GitHubClient> =>
+): Effect.Effect<
+	{ results: ReadonlyArray<LabelResult>; customLabels: ReadonlyArray<string>; errors: ReadonlyArray<SyncErrorRecord> },
+	never,
+	GitHubClient
+> =>
 	Effect.gen(function* () {
 		const existing = yield* listLabels(owner, repo).pipe(
 			Effect.catchAll((e) =>
@@ -21,17 +25,28 @@ export const syncLabels = (
 		);
 
 		const results: Array<LabelResult> = [];
+		const errors: Array<SyncErrorRecord> = [];
 		const desiredNames = new Set(desiredLabels.map((l) => l.name.toLowerCase()));
 		const customLabels = existing.filter((l) => !desiredNames.has(l.name.toLowerCase())).map((l) => l.name);
+
+		/** Run a label mutation; on failure record an error and report it did not apply. */
+		const apply = (operation: string, name: string, effect: Effect.Effect<void, { reason: string }>) =>
+			effect.pipe(
+				Effect.as(true),
+				Effect.catchAll((e) => {
+					errors.push({ target: name, operation, error: e.reason });
+					return Effect.logWarning(`Failed to ${operation} label "${name}": ${e.reason}`).pipe(Effect.as(false));
+				}),
+			);
 
 		for (const want of desiredLabels) {
 			const have = existing.find((l) => l.name.toLowerCase() === want.name.toLowerCase());
 			if (!have) {
-				if (!dryRun)
-					yield* createLabel(owner, repo, want).pipe(
-						Effect.catchAll((e) => Effect.logWarning(`Failed to create "${want.name}": ${e.reason}`)),
-					);
-				results.push({ name: want.name, operation: "created" });
+				if (dryRun) {
+					results.push({ name: want.name, operation: "created" });
+				} else if (yield* apply("create", want.name, createLabel(owner, repo, want))) {
+					results.push({ name: want.name, operation: "created" });
+				}
 				continue;
 			}
 			const colorDiffers = have.color.toLowerCase() !== want.color.toLowerCase();
@@ -42,11 +57,11 @@ export const syncLabels = (
 				if (casingDiffers) changes.push(`name: "${have.name}" -> "${want.name}"`);
 				if (descriptionDiffers) changes.push("description");
 				if (colorDiffers) changes.push(`color: #${have.color} -> #${want.color}`);
-				if (!dryRun)
-					yield* updateLabel(owner, repo, have.name, want).pipe(
-						Effect.catchAll((e) => Effect.logWarning(`Failed to update "${want.name}": ${e.reason}`)),
-					);
-				results.push({ name: want.name, operation: "updated", changes });
+				if (dryRun) {
+					results.push({ name: want.name, operation: "updated", changes });
+				} else if (yield* apply("update", want.name, updateLabel(owner, repo, have.name, want))) {
+					results.push({ name: want.name, operation: "updated", changes });
+				}
 			} else {
 				results.push({ name: want.name, operation: "unchanged" });
 			}
@@ -54,13 +69,13 @@ export const syncLabels = (
 
 		if (removeCustom) {
 			for (const name of customLabels) {
-				if (!dryRun)
-					yield* deleteLabel(owner, repo, name).pipe(
-						Effect.catchAll((e) => Effect.logWarning(`Failed to remove "${name}": ${e.reason}`)),
-					);
-				results.push({ name, operation: "removed" });
+				if (dryRun) {
+					results.push({ name, operation: "removed" });
+				} else if (yield* apply("remove", name, deleteLabel(owner, repo, name))) {
+					results.push({ name, operation: "removed" });
+				}
 			}
 		}
 
-		return { results, customLabels };
+		return { results, customLabels, errors };
 	});
