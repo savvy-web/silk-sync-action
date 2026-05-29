@@ -1,4 +1,4 @@
-import type { GitHubClient } from "@savvy-web/github-action-effects";
+import type { GitHubClient, GitHubClientError } from "@savvy-web/github-action-effects";
 import { Effect } from "effect";
 import type { GitHubLabel } from "../github/reads.js";
 import { createLabel, deleteLabel, listLabels, updateLabel } from "../github/reads.js";
@@ -30,7 +30,7 @@ export const syncLabels = (
 		const customLabels = existing.filter((l) => !desiredNames.has(l.name.toLowerCase())).map((l) => l.name);
 
 		/** Run a label mutation; on failure record an error and report it did not apply. */
-		const apply = (operation: string, name: string, effect: Effect.Effect<void, { reason: string }>) =>
+		const apply = (operation: string, name: string, effect: Effect.Effect<void, GitHubClientError, GitHubClient>) =>
 			effect.pipe(
 				Effect.as(true),
 				Effect.catchAll((e) => {

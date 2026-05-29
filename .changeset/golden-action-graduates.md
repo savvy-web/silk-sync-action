@@ -12,7 +12,7 @@ The action input previously named `app-id` is now `app-client-id`. Workflows tha
 # Before
 - uses: savvy-web/silk-sync-action@v0
   with:
-    app-id: ${{ secrets.APP_ID }}
+    app-id: ${{ vars.APP_CLIENT_ID }}
 
 # After
 - uses: savvy-web/silk-sync-action@v1
@@ -41,7 +41,7 @@ Four scalar outputs are now emitted alongside the existing `results` JSON output
 - id: sync
   uses: savvy-web/silk-sync-action@v1
   with:
-    app-client-id: ${{ secrets.APP_ID }}
+    app-client-id: ${{ vars.APP_CLIENT_ID }}
     app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
 - name: Check results

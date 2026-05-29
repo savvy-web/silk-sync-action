@@ -4,7 +4,7 @@ import type { GitHubRepo } from "../github/reads.js";
 import { updateRepo } from "../github/reads.js";
 import type { RepositorySettings, SettingChange } from "../schemas.js";
 
-const SYNCABLE_KEYS: ReadonlyArray<keyof RepositorySettings> = [
+const SYNCABLE_KEYS: ReadonlyArray<keyof RepositorySettings & keyof GitHubRepo> = [
 	"has_wiki",
 	"has_issues",
 	"has_projects",
@@ -33,7 +33,7 @@ export const syncSettings = (
 		for (const key of SYNCABLE_KEYS) {
 			const want = desired[key];
 			if (want === undefined) continue;
-			const have = (current as Record<string, unknown>)[key];
+			const have = current[key];
 			if (have !== want) {
 				changes.push({ key, from: have, to: want });
 				toApply[key] = want;
