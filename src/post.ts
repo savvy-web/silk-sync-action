@@ -1,50 +1,24 @@
-/**
- * Post step: token revocation and cleanup.
- *
- * Always runs (even if main step failed). Revokes the GitHub App
- * installation token unless skip-token-revoke was set. Logs total
- * duration.
- *
- * @module post
- */
+import { Action, ActionState, GitHubToken } from "@savvy-web/github-action-effects";
+import { Effect, Option } from "effect";
+import { PostLive } from "./layers/app.js";
+import { STATE_KEYS, StartTimeState } from "./state.js";
 
-import * as core from "@actions/core";
-import { NodeRuntime } from "@effect/platform-node";
-import { Effect } from "effect";
-
-import { revokeInstallationToken } from "./lib/github/auth.js";
-
-const program = Effect.gen(function* () {
-	// Log duration if start time was recorded
-	const startTime = core.getState("startTime");
-	if (startTime) {
-		const duration = Date.now() - Number.parseInt(startTime, 10);
-		core.info(`Total duration: ${(duration / 1000).toFixed(1)}s`);
+export const post = Effect.gen(function* () {
+	const state = yield* ActionState;
+	const start = yield* state.getOptional(STATE_KEYS.startTime, StartTimeState);
+	if (Option.isSome(start)) {
+		const duration = Date.now() - start.value.startedAt;
+		yield* Effect.logInfo(`Total duration: ${(duration / 1000).toFixed(1)}s`);
 	}
-
-	// Check if token revocation should be skipped
-	const skipRevoke = core.getState("skipTokenRevoke") === "true";
-	if (skipRevoke) {
-		core.info("Token revocation skipped (skip-token-revoke=true).");
-		return;
-	}
-
-	// Get token from state
-	const token = core.getState("token");
-	if (!token) {
-		core.info("No token to revoke (pre step may not have completed).");
-		return;
-	}
-
-	// Revoke the token
-	core.info("Revoking installation token...");
-	yield* revokeInstallationToken(token).pipe(
-		Effect.catchAll((e) => {
-			core.warning(`Failed to revoke token: ${e.message}`);
-			return Effect.void;
-		}),
+	yield* Effect.logInfo("Revoking installation token...");
+	yield* GitHubToken.dispose().pipe(
+		Effect.catchAll((e) => Effect.logWarning(`Token revocation failed: ${e instanceof Error ? e.message : String(e)}`)),
 	);
-	core.info("Token revoked.");
-});
+}).pipe(
+	Effect.catchAllDefect((d) => Effect.logWarning(`Post-action warning: ${d instanceof Error ? d.message : String(d)}`)),
+);
 
-NodeRuntime.runMain(program);
+/* v8 ignore next 3 */
+if (process.env.GITHUB_ACTIONS) {
+	await Action.run(post, { layer: PostLive });
+}

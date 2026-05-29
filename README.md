@@ -1,6 +1,6 @@
 # Silk Sync Action
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: MIT](https://img.shields.io/badge/License-MIT-4caf50.svg)](https://opensource.org/licenses/MIT)
 
 Synchronize repository labels, settings, and GitHub Projects V2 across an
 entire organization from a single JSON config file. Authenticate once with a
@@ -14,7 +14,7 @@ GitHub App and let every targeted repo converge to the same standard.
 - Discover repos by org custom properties or an explicit list
 - Dry-run mode to preview all changes before applying them
 
-## Quick Start
+## Quick start
 
 ```yaml
 - uses: savvy-web/silk-sync-action@main
@@ -82,8 +82,8 @@ and deduplicated:
 ```yaml
 - uses: savvy-web/silk-sync-action@main
   with:
-    app-id: ${{ secrets.SILK_APP_ID }}
-    app-private-key: ${{ secrets.SILK_APP_PRIVATE_KEY }}
+    app-client-id: ${{ vars.APP_CLIENT_ID }}
+    app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
     config-file: .github/silk.config.json
     custom-properties: |
       workflow=standard
@@ -101,8 +101,8 @@ instead:
 ```yaml
 - uses: savvy-web/silk-sync-action@main
   with:
-    app-id: ${{ secrets.SILK_APP_ID }}
-    app-private-key: ${{ secrets.SILK_APP_PRIVATE_KEY }}
+    app-client-id: ${{ vars.APP_CLIENT_ID }}
+    app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
     config-file: .github/silk.config.json
     repos: |
       my-repo-one
@@ -160,27 +160,31 @@ and validation.
 
 | Input | Required | Default | Description |
 | --- | --- | --- | --- |
-| `app-id` | Yes | | GitHub App ID for authentication |
+| `app-client-id` | Yes | | GitHub App client ID for authentication |
 | `app-private-key` | Yes | | GitHub App private key (PEM format) |
-| `config-file` | Yes | `.github/silk.config.json` | Path to the JSON config file |
+| `config-file` | Yes | `.github/silk.config.json` | Path to the JSON config file (labels + settings) |
 | `custom-properties` | No | | Multiline `key=value` pairs for org custom property matching (AND logic) |
-| `repos` | No | | Explicit repository names, one per line |
+| `repos` | No | | Explicit repository names, one per line. Bare names or `owner/repo` |
 | `dry-run` | No | `false` | Preview changes without applying them |
 | `remove-custom-labels` | No | `false` | Remove labels not defined in the config |
 | `sync-settings` | No | `true` | Sync repository settings |
 | `sync-projects` | No | `true` | Sync project linking and backfill |
 | `skip-backfill` | No | `false` | Link repos to projects only, skip adding items |
-| `log-level` | No | `info` | Logging verbosity (`info` or `debug`) |
-| `skip-token-revoke` | No | `false` | Skip revoking the token in the post step |
 
 ## Outputs
 
 | Output | Description |
 | --- | --- |
 | `results` | JSON string with sync results (parse with `fromJSON()`) |
+| `success` | `"true"` when all repos synced without errors, otherwise `"false"` |
+| `repos-total` | Total repositories processed |
+| `repos-succeeded` | Repositories synced without errors |
+| `repos-failed` | Repositories with at least one error |
 
-The `results` output contains repo counts, label/settings/project statistics,
-and per-repo error details:
+The scalar outputs (`success`, `repos-total`, `repos-succeeded`,
+`repos-failed`) are convenience values pulled from `results`, so you can branch
+on them without parsing JSON. The `results` output carries the full detail:
+repo counts, label/settings/project statistics and per-repo error details.
 
 ```json
 {
@@ -205,7 +209,8 @@ and per-repo error details:
 }
 ```
 
-Use it in downstream steps, for example to send a Slack notification:
+Use the outputs in downstream steps. The scalar outputs let you branch without
+parsing JSON:
 
 ```yaml
 - uses: savvy-web/silk-sync-action@main
@@ -217,9 +222,12 @@ Use it in downstream steps, for example to send a Slack notification:
     custom-properties: |
       workflow=standard
 
-- if: fromJSON(steps.silk.outputs.results).repos.failed > 0
-  run: echo "::warning::${{ fromJSON(steps.silk.outputs.results).repos.failed }} repos had sync errors"
+- if: steps.silk.outputs.repos-failed > 0
+  run: echo "::warning::${{ steps.silk.outputs.repos-failed }} repos had sync errors"
 ```
+
+Reach for `fromJSON(steps.silk.outputs.results)` when you need the per-repo
+breakdown or the label/settings/project counts.
 
 ## License
 

@@ -5,8 +5,8 @@ branding:
   icon: package
   color: yellow
 inputs:
-  app-id:
-    description: GitHub App ID for authentication
+  app-client-id:
+    description: GitHub App client ID for authentication
     required: true
   app-private-key:
     description: GitHub App private key (PEM format)
@@ -44,17 +44,17 @@ inputs:
     description: Link repos to projects only, skip adding items
     required: false
     default: "false"
-  log-level:
-    description: Logging verbosity (info or debug)
-    required: false
-    default: info
-  skip-token-revoke:
-    description: Skip revoking token in post step
-    required: false
-    default: "false"
 outputs:
   results:
-    description: JSON string with sync results including repo counts, label/settings/project statistics, and per-repo error details. Parse with fromJSON() for downstream use.
+    description: JSON string with sync results (repo counts, label/settings/project stats, per-repo errors). Parse with fromJSON().
+  success:
+    description: "true when all repos synced without errors"
+  repos-total:
+    description: Total repositories processed
+  repos-succeeded:
+    description: Repositories synced without errors
+  repos-failed:
+    description: Repositories with at least one error
 runs:
   using: node24
   pre: dist/pre.js
