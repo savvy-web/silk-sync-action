@@ -25,7 +25,7 @@
 		"generate:schema": {
 			"cache": true,
 			"dependsOn": ["types:check"],
-			"inputs": ["src/lib/schemas/index.ts", "lib/scripts/generate-schema.ts"],
+			"inputs": ["src/schemas.ts", "lib/scripts/generate-schema.ts"],
 			"outputs": ["silk.config.schema.json"]
 		},
 		"types:check": {

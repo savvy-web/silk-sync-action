@@ -1,46 +1,29 @@
-/**
- * Pre step: authentication and input parsing.
- *
- * Runs before the main step (and before checkout). Generates a GitHub
- * App installation token, parses all inputs, and saves state for
- * the main and post steps. Config loading is deferred to the main
- * step since the repo is not yet checked out when pre runs.
- *
- * @module pre
- */
-
-import * as core from "@actions/core";
-import { NodeRuntime } from "@effect/platform-node";
+import { Action, ActionState, GitHubToken } from "@savvy-web/github-action-effects";
 import { Effect } from "effect";
+import { PreLive } from "./layers/app.js";
+import { STATE_KEYS, StartTimeState } from "./state.js";
 
-import { generateInstallationToken } from "./lib/github/auth.js";
-import { parseInputs } from "./lib/inputs.js";
+/**
+ * Fine-grained installation permissions silk-sync requires. `provision` verifies
+ * the minted token grants at least these before persisting, failing fast otherwise.
+ */
+export const REQUIRED_PERMISSIONS = {
+	administration: "write",
+	issues: "write",
+	organization_custom_properties: "read",
+	organization_projects: "write",
+} as const;
 
-const program = Effect.gen(function* () {
-	const startTime = Date.now();
-	core.saveState("startTime", String(startTime));
+export const pre = Effect.gen(function* () {
+	const state = yield* ActionState;
+	yield* state.save(STATE_KEYS.startTime, new StartTimeState({ startedAt: Date.now() }), StartTimeState);
 
-	// 1. Parse and validate all inputs
-	core.info("Validating inputs...");
-	const inputs = yield* parseInputs;
-	core.saveState("inputs", JSON.stringify(inputs));
+	yield* Effect.logInfo("Generating GitHub App installation token...");
+	const token = yield* GitHubToken.provision({ permissions: REQUIRED_PERMISSIONS });
+	yield* Effect.logInfo(`Token generated (expires: ${token.expiresAt})`);
+});
 
-	// 2. Generate GitHub App installation token
-	core.info("Generating GitHub App installation token...");
-	const tokenInfo = yield* generateInstallationToken(inputs.appId, inputs.appPrivateKey);
-	core.saveState("token", tokenInfo.token);
-	core.saveState("skipTokenRevoke", String(inputs.skipTokenRevoke));
-	core.setSecret(tokenInfo.token);
-
-	core.info(`Authenticated as "${tokenInfo.appSlug}" (expires: ${tokenInfo.expiresAt})`);
-	core.info("Pre step complete.");
-}).pipe(
-	Effect.catchAll((error) =>
-		Effect.sync(() => {
-			const message = error instanceof Error ? error.message : String(error);
-			core.setFailed(`Pre step failed: ${message}`);
-		}),
-	),
-);
-
-NodeRuntime.runMain(program);
+/* v8 ignore next 3 */
+if (process.env.GITHUB_ACTIONS) {
+	await Action.run(pre, { layer: PreLive });
+}

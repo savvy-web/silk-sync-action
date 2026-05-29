@@ -3,8 +3,8 @@ status: current
 module: silk-sync-action
 category: architecture
 created: 2026-02-09
-updated: 2026-02-09
-last-synced: 2026-02-09
+updated: 2026-05-29
+last-synced: 2026-05-29
 completeness: 95
 related: []
 dependencies: []
@@ -14,10 +14,7 @@ implementation-plans:
 
 # Silk Sync Action - Architecture
 
-GitHub Action that synchronizes repository settings, labels, and project
-linking across a GitHub organization (or personal account) using a
-centralized configuration file. Built with Effect-TS and
-`@savvy-web/github-action-builder`.
+GitHub Action that synchronizes repository settings, labels and GitHub Projects V2 linking across a GitHub organization (or personal account) using a centralized configuration file. Built on Effect-TS and `@savvy-web/github-action-effects` v2, which supplies the entire service layer (auth, resilient REST/GraphQL clients, state, outputs and reporting). This action contributes only the Silk-specific domain logic on top.
 
 ## Table of Contents
 
@@ -27,7 +24,7 @@ centralized configuration file. Built with Effect-TS and
 4. [System Architecture](#system-architecture)
 5. [Module Structure](#module-structure)
 6. [Schemas and Types](#schemas-and-types)
-7. [Effect Services](#effect-services)
+7. [Service Layer](#service-layer)
 8. [Data Flow](#data-flow)
 9. [Integration Points](#integration-points)
 10. [Error Handling](#error-handling)
@@ -40,1536 +37,393 @@ centralized configuration file. Built with Effect-TS and
 
 ## Overview
 
-The Silk Sync Action enforces organizational consistency across GitHub
-repositories. It reads a user-provided JSON configuration file
-(validated against a published JSON schema) and applies standardized
-labels, repository settings, and GitHub Projects V2 linking to target
-repositories.
+The Silk Sync Action enforces organizational consistency across GitHub repositories. It reads a user-provided JSON configuration file (validated against a published JSON schema) and applies standardized labels, repository settings and GitHub Projects V2 linking to target repositories.
 
 **Two discovery modes (combinable as union):**
 
-- **Custom properties mode:** Discovers repos via arbitrary GitHub
-  custom properties (e.g. `workflow=standard`). Multiple properties
-  use AND logic (repo must match all). Requires org-level custom
-  properties.
-- **Explicit repos mode:** Accepts a multiline list of repository
-  names. For personal accounts or orgs without custom properties.
+- **Custom properties mode:** Discovers repos via arbitrary GitHub custom properties (e.g. `workflow=standard`). Multiple properties use AND logic (repo must match all), matched case-insensitively. Requires org-level custom properties.
+- **Explicit repos mode:** Accepts a multiline list of repository names (bare names or `owner/repo`). For personal accounts or orgs without custom properties.
 
-Both modes can be used simultaneously; results are merged and
-deduplicated by full repository name (case-insensitive).
+Both modes can be used simultaneously; results are merged and deduplicated by full repository name (case-insensitive). When a repo appears in both, the org-discovered custom properties win.
 
-**Key Design Principles:**
+**Key design principles:**
 
-- **Configuration-driven:** All sync behavior derives from a
-  user-provided JSON config file with published JSON schema
-- **Dual discovery:** Custom properties and explicit repo lists,
-  combinable as union
-- **Idempotent:** Running the action multiple times produces the same
-  result
-- **Rate-limit aware:** Built-in throttling and cooldown for GitHub API
-  limits
-- **Error accumulating:** Per-repo errors do not halt the run; all
-  results are reported
-- **Effect-TS powered:** Type-safe errors, dependency injection,
-  composable programs
+- **Library-supplied service layer:** All cross-cutting concerns — App auth, resilient REST/GraphQL clients, retry/backoff, action state, outputs and step-summary markdown — come from `@savvy-web/github-action-effects`. This action owns only domain logic.
+- **Configuration-driven:** All sync behavior derives from a user-provided JSON config file with a published JSON schema generated from the same Effect Schema used for runtime validation.
+- **Dual discovery:** Custom properties and explicit repo lists, combinable as union.
+- **Idempotent:** Running the action multiple times produces the same result.
+- **Resilient by default:** Rate-limit handling (429) and transient 5xx retries/backoff are handled inside the library `GitHubClient`, not by hand-rolled throttling here.
+- **Error accumulating:** Per-repo errors do not halt the run; all results are reported.
 
 **When to reference this document:**
 
 - When modifying sync workflow logic in `src/`
 - When adding new sync capabilities (settings, labels, projects)
-- When debugging API rate limit or permission issues
-- When understanding the repository discovery mechanism
+- When debugging discovery, API or permission issues
+- When understanding how this action wires the library service layer
 
 ---
 
 ## Current State
 
-### Implementation Status
+The action is a compiled TypeScript action built on `@savvy-web/github-action-effects` v2 and `@savvy-web/github-action-builder`. It runs as a three-phase `node24` action (`pre` -> `main` -> `post`) whose lifecycle is driven by the library's `Action.run` entrypoint and `GitHubToken` token lifecycle.
 
-The action has been fully migrated from an inline `actions/github-script`
-workflow to a compiled TypeScript action using
-`@savvy-web/github-action-builder` and Effect-TS. All 8 implementation
-phases are complete.
+**Source is a flat `src/` layout** (no `src/lib/` tree). Key files:
 
-**Key implementation files:**
+- `src/pre.ts`, `src/main.ts`, `src/post.ts` — the three phase entrypoints, each a thin `Action.run(program, { layer })` shell
+- `src/program.ts` — the main Effect program (the orchestration body of `main`)
+- `src/layers/app.ts` — `PreLive` / `MainLive` / `PostLive` layer compositions
+- `src/schemas.ts` — domain schemas (`SilkConfig`, `DiscoveredRepo`, results) and `ResultsOutput`
+- `src/errors.ts` — domain `TaggedError`s (`DiscoveryError`, `InvalidInputError`)
+- `src/state.ts` — `StartTimeState` Schema class for cross-phase state
+- `src/inputs.ts` — input parsing into `SilkInputs`
+- `src/github/reads.ts` — typed REST wrappers over the library `GitHubClient`
+- `src/discovery/`, `src/sync/`, `src/reporting/` — the domain logic
+- `action.yml` — action manifest (`node24`, three phases)
+- `action.config.ts` — `github-action-builder` build config (entries + ignore list)
+- `lib/scripts/generate-schema.ts` — build-time JSON Schema generator
 
-- `src/pre.ts` - Pre step: input validation, token generation
-- `src/main.ts` - Main step: config loading, discovery, sync
-  orchestration, reporting
-- `src/post.ts` - Post step: token revocation, duration logging
-- `src/lib/` - Core library modules (schemas, services, sync, etc.)
-- `action.yml` - Compiled action manifest (`node24` runtime)
-- `lib/scripts/generate-schema.ts` - Build-time JSON Schema generator
-- 12 test files covering all modules
+### Phase summary
 
-### Architecture Summary
-
-Three-phase GitHub Action execution (pre -> main -> post):
-
-- **pre.ts:** Parse and validate all inputs via `@actions/core`. Generate
-  a GitHub App installation token using `@octokit/auth-app` and
-  `@octokit/request`. Save token and inputs to `core.saveState()`.
-  Fails fast on input validation or auth errors before any sync work.
-  Config loading is deferred to the main step because the pre step runs
-  before `actions/checkout`, so the config file is not yet on disk.
-- **main.ts:** Retrieve token and inputs from `core.getState()`. Load
-  and validate the config file against the `SilkConfig` Effect Schema.
-  Create the combined service layer via `makeAppLayer(token)`. Discover
-  repos via API. Resolve projects (GraphQL, cached). Process each repo
-  with error accumulation. Generate console summary + step summary. Set
-  a structured `results` JSON output with aggregated statistics.
-- **post.ts:** Retrieve token and `skipTokenRevoke` from state. Revoke
-  the GitHub App installation token (unless `skip-token-revoke` is set).
-  Log total duration. Handles missing token gracefully (pre step may
-  have failed).
-
-All three entry points use `NodeRuntime.runMain()` from
-`@effect/platform-node` to run the Effect program.
+- **pre (`src/pre.ts` -> `pre`):** Persist start time via `ActionState`. Provision a GitHub App installation token via `GitHubToken.provision`, asserting the token carries at least `REQUIRED_PERMISSIONS` (fail fast otherwise). No config loading here — the pre step runs before `actions/checkout`, so the config file is not yet on disk.
+- **main (`src/main.ts` -> `program`):** Resolve a `GitHubClient` built from the persisted token, parse inputs, load and validate the config, discover repos, resolve projects, process each repo with error accumulation, write a step summary and set outputs.
+- **post (`src/post.ts` -> `post`):** Log total duration (from the persisted start time) and dispose (revoke) the installation token via `GitHubToken.dispose`. Defects are swallowed as warnings so post never fails the job.
 
 ---
 
 ## Rationale
 
-### Architectural Decisions
+### Decision 1: Build on `@savvy-web/github-action-effects` v2
 
-#### Decision 1: Compiled TypeScript Action (Migration)
+**Context:** The previous implementation hand-rolled everything against `@actions/*` and `@octokit/*`: custom `Context.Tag` REST/GraphQL services, App auth, rate-limit throttling, `core.saveState` state passing and `NodeRuntime.runMain` entrypoints. That surface was large, error-prone and duplicated across Silk actions.
 
-**Context:** The original workflow used inline `actions/github-script`
-which grew to 900+ lines with no type safety or testability.
-
-**Chosen:** Compiled TypeScript action via
-`@savvy-web/github-action-builder`
+**Chosen:** Delete the entire bespoke service/auth/throttle layer and consume the library equivalents: `Action.run`, `GitHubClient`, `GitHubGraphQL`, `GitHubToken`, `ConfigLoader`, `ActionState`, `ActionOutputs`, `ErrorAccumulator`, `GithubMarkdown`/`Step`.
 
 **Why:**
 
-- TypeScript type safety with Effect Schema validation
-- Unit testable with mock services
-- Modular code organization
-- Consistent with other Silk actions (pnpm-config-dependency-action)
-- `@vercel/ncc` bundling produces single-file dist/main.js
+- The library owns resilience (429 + 5xx retry/backoff inside `GitHubClient`), so this action no longer ships a rate-limit module or inter-repo/inter-item sleeps.
+- App auth becomes a three-call lifecycle (`provision` / `client()` / `dispose`) instead of hand-managed Octokit auth and token revocation.
+- State is Schema-typed (`ActionState.save` / `getOptional`) instead of stringly-typed `core.saveState`.
+- Runtime dependencies shrink to `effect`, `@effect/platform(-node)` and the library.
 
-#### Decision 2: Dual Discovery (Org + Personal)
+### Decision 2: Dual discovery (org + personal)
 
-**Context:** The original workflow only supported org custom properties.
-Personal accounts cannot use custom properties.
+Support both org discovery (via custom properties) and explicit repo lists. Org mode is self-service and queryable but org-only; explicit mode works without org admin access. The two modes union, so a repo without the right custom properties can still be force-included by name. See `src/discovery/index.ts`.
 
-**Chosen:** Support both org discovery (via custom properties) and
-explicit repo lists (via `repositories` input).
+### Decision 3: User-provided config with a generated JSON schema
 
-**Why:**
+Label definitions and repository settings come from a user-provided JSON config file. The published `silk.config.schema.json` is generated from the `SilkConfig` Effect Schema at build time (`lib/scripts/generate-schema.ts`, `JSONSchema.make(SilkConfig)`), so IDE autocompletion and runtime validation share one source of truth. `SilkConfig` carries an optional `$schema` field so users can reference the schema in their config without a validation error.
 
-- Org mode: Self-service, no central manifest, queryable
-- Personal mode: Works without org admin access
-- Union behavior: Both modes can be combined
+### Decision 4: Three-phase execution via the `GitHubToken` lifecycle
 
-#### Decision 3: Effect-TS Service Architecture
+The pre/main/post split is preserved, but auth is now the library token lifecycle rather than hand-rolled Octokit. `pre` provisions the token and verifies permissions before any sync work; `main` builds its `GitHubClient` from the persisted token; `post` disposes it for hygiene even if `main` fails. Config loading lives in `main` because `pre` runs before checkout.
 
-**Context:** Need composable, testable API interactions with typed error
-handling.
+### Decision 5: `octokit.request` for the custom-properties endpoint
 
-**Chosen:** Effect services for GitHub REST and GraphQL, with
-`Context.Tag` for dependency injection.
+The typed Octokit REST methods still do not cover `GET /orgs/{org}/properties/values`. `src/github/reads.ts` calls it through `GitHubClient.paginate` using `octokit.request(...)` with a locally-typed response row, then normalizes each row into the `OrgRepoProperty` shape. This keeps the typing gap isolated to one wrapper while still benefiting from the library client's pagination and resilience.
 
-**Why:**
+### Decision 6: Stable operation-name keys for the library client
 
-- Typed error channels (every function declares its failure modes)
-- Error accumulation (process all repos, report all failures)
-- Dependency injection (mock services for testing via `Layer.succeed`)
-- Consistent with pnpm-config-dependency-action patterns
-
-#### Decision 4: User-Provided Config File with Published JSON Schema
-
-**Context:** The action needs label definitions and repository settings.
-
-**Chosen:** User-provided JSON config file with JSON Schema generated
-from Effect Schema at build time.
-
-**Why:**
-
-- Maximum flexibility, reusable across orgs
-- JSON Schema gives IDE autocompletion (generated via
-  `JSONSchema.make(SilkConfig)`)
-- Runtime validation uses the same Effect Schema definitions
-
-#### Decision 5: Three-Phase Execution with GitHub App Auth
-
-**Context:** Need org-wide API access for label management, settings
-sync, and project operations. Also want to fail fast on invalid config.
-
-**Chosen:** Three-phase execution (pre/main/post) with GitHub App
-authentication.
-
-**Why:**
-
-- **pre.ts:** Validates inputs and generates short-lived installation
-  token. Runs before `actions/checkout`, so config loading is deferred.
-  Catches input and auth errors before any sync work begins.
-- **main.ts:** Loads config (now available after checkout), then uses
-  token for all API operations. Sets structured `results` JSON output.
-  Clear separation between setup and execution.
-- **post.ts:** Revokes token for security hygiene. Runs even if main
-  fails.
-
-#### Decision 6: `octokit.request()` for Custom Properties Endpoint
-
-**Context:** The Octokit typed methods do not yet expose the
-`/orgs/{org}/properties/values` endpoint for custom repository
-properties.
-
-**Chosen:** Use `octokit.request("GET /orgs/{org}/properties/values")`
-with manual type assertions for the response shape.
-
-**Why:**
-
-- The custom properties API is relatively new and Octokit's typed
-  REST methods do not cover it
-- `octokit.request()` allows calling any REST endpoint with path
-  parameters while still using the authenticated Octokit instance
-- Response data is manually typed via `OrgRepoProperty` interface in
-  `src/lib/services/types.ts`
-
-#### Decision 7: Service Interface Separation from Implementation
-
-**Context:** Service interfaces, Context.Tags, and raw GitHub data types
-need to be importable without pulling in implementation dependencies.
-
-**Chosen:** Separate `src/lib/services/types.ts` from `rest.ts` and
-`graphql.ts`.
-
-**Why:**
-
-- Avoids circular imports (consumers import types, not implementations)
-- Test helpers can import service interfaces without Octokit dependency
-- Clean separation of contract (types.ts) from implementation (rest.ts,
-  graphql.ts)
+Every REST/GraphQL call passes a stable operation name (e.g. `"issues.listLabelsForRepo"`, `"resolveProject"`) as the first argument to `GitHubClient.rest`/`paginate` and `GitHubGraphQL.query`/`mutation`. The library uses these keys for logging, retry bookkeeping and step grouping, so they must stay stable and descriptive.
 
 ### Constraints
 
-#### Constraint 1: GitHub API Rate Limits
-
-- REST API: 5,000 req/hr per installation
-- GraphQL API: 5,000 points/hr
-- **Mitigation:** Rate limit checks every 10 repos (REST) and every 3
-  backfill pages (GraphQL). 1s delay between repos, 100ms delay between
-  backfill items. 60s pause when REST remaining < 50. 30s pause when
-  GraphQL remaining < 100.
-
-#### Constraint 2: Custom Properties Availability
-
-- Only available for GitHub Organizations (not personal accounts)
-- Requires org admin to configure properties
-- **Mitigation:** Dual discovery mode with explicit repo list fallback
-
-#### Constraint 3: Org Administration Permission
-
-- Label management requires `administration:write` on the GitHub App
-- Settings sync requires `administration:write`
-- **Mitigation:** Document required permissions clearly
+- **Custom properties availability:** Only GitHub Organizations expose custom properties, and only an org admin can configure them. Mitigated by the explicit-repo discovery fallback.
+- **Required App permissions:** Declared once in `REQUIRED_PERMISSIONS` in `src/pre.ts` and asserted by `GitHubToken.provision`. Currently `administration: write`, `issues: write`, `organization_custom_properties: read`, `organization_projects: write`.
+- **Rate limits:** Handled by the library `GitHubClient` (automatic 429/5xx retry + backoff). This action does not implement its own throttling.
 
 ---
 
 ## System Architecture
 
-### Execution Model
+### Execution model
 
-Three-phase Node.js 24 action (pre -> main -> post):
+Three-phase Node.js 24 action (pre -> main -> post), declared in `action.yml`:
 
 ```yaml
 runs:
-  using: "node24"
-  pre: "dist/pre.js"
-  main: "dist/main.js"
-  post: "dist/post.js"
+  using: node24
+  pre: dist/pre.js
+  main: dist/main.js
+  post: dist/post.js
 ```
 
-### Action Inputs
+Each entrypoint is a thin shell: `pre.ts` and `post.ts` guard on `process.env.GITHUB_ACTIONS` and call `Action.run(<program>, { layer })`; `main.ts` calls `Action.run(program, { layer: MainLive })` unconditionally. `Action.run` (from the library) is the replacement for the former `NodeRuntime.runMain`.
 
-**Required:**
+### Layer composition (`src/layers/app.ts`)
 
-| Input | Type | Description |
-| :---- | :--- | :---------- |
-| `app-id` | string | GitHub App ID for authentication |
-| `app-private-key` | string | GitHub App private key (PEM format) |
-| `config-file` | string | Path to JSON config file (default: `.github/silk.config.json`) |
+This is the load-bearing wiring between the action and the library:
 
-**Repository Discovery (at least one required):**
+- **`PreLive` / `PostLive`:** `GitHubAppLive` (provided `OctokitAuthAppLive` + `FetchHttpClient.layer`) merged with `NodeFileSystem.layer`. Supplies App auth (for token provision/dispose) plus a filesystem for `ActionState`.
+- **`MainLive`:** a `GitHubClient` built from the persisted installation token via `GitHubToken.client()` (provided `ActionStateLive`, `Layer.orDie`), a `GitHubGraphQL` layered on that client, and `ConfigLoaderLive`. This is the only place the persisted token is turned back into an authenticated client.
 
-| Input | Type | Default | Description |
-| :---- | :--- | :------ | :---------- |
-| `custom-properties` | string | -- | Multiline `key=value` pairs for org custom property matching (AND logic) |
-| `repos` | string | -- | Multiline list of explicit repo names (one per line) |
+### Action contract (`action.yml`)
 
-Both discovery inputs can be specified simultaneously. Results are
-merged as a union and deduplicated by full repo name.
+**Inputs** — required: `app-client-id`, `app-private-key`, `config-file` (default `.github/silk.config.json`). Discovery (at least one required): `custom-properties` (multiline `key=value`, AND logic) and/or `repos` (multiline names). Options: `dry-run`, `remove-custom-labels`, `sync-settings`, `sync-projects`, `skip-backfill`.
 
-**Sync Options:**
+**Outputs:** `results` (full JSON, shape = `ResultsOutput` in `src/schemas.ts`) plus scalar convenience outputs `success`, `repos-total`, `repos-succeeded`, `repos-failed`.
 
-| Input | Type | Default | Description |
-| :---- | :--- | :------ | :---------- |
-| `dry-run` | boolean | false | Preview changes without applying |
-| `remove-custom-labels` | boolean | false | Remove labels not in config defaults |
-| `sync-settings` | boolean | true | Sync repository settings |
-| `sync-projects` | boolean | true | Sync project linking and backfill |
-| `skip-backfill` | boolean | false | Link repos to projects only, skip adding items |
-| `log-level` | string | info | Logging verbosity (`info` or `debug`) |
-| `skip-token-revoke` | boolean | false | Skip revoking token in post step |
-
-**Action Outputs:**
-
-| Output | Description |
-| :----- | :---------- |
-| `results` | JSON string with sync results (repo counts, label/settings/project statistics, per-repo error details). Parse with `fromJSON()` for downstream use. |
-
-The `results` output is set in `main.ts` using the exported
-`aggregateStats()` function from `src/lib/reporting/console.ts`. Its
-shape is:
-
-```json
-{
-  "success": true,
-  "dryRun": false,
-  "repos": { "total": 12, "succeeded": 11, "failed": 1 },
-  "labels": { "created": 4, "updated": 7, "removed": 0, "unchanged": 203, "customCount": 12 },
-  "settings": { "changed": 5, "reposWithDrift": 3 },
-  "projects": { "linked": 2, "alreadyLinked": 6, "itemsAdded": 14, "itemsAlreadyPresent": 89 },
-  "errors": [{ "repo": "owner/repo", "details": [...] }]
-}
-```
-
-**Example usage:**
+This contract is a **breaking change for 1.0.0** relative to the original action: `app-id` became `app-client-id`, the `log-level` and `skip-token-revoke` inputs were removed (logging is the library's concern; token revocation is unconditional via `GitHubToken.dispose`), and the scalar outputs were added.
 
 ```yaml
 # Organization with custom properties
 - uses: savvy-web/silk-sync-action@v1
   with:
-    app-id: ${{ secrets.APP_ID }}
+    app-client-id: ${{ secrets.APP_CLIENT_ID }}
     app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
     config-file: .github/silk.config.json
     custom-properties: |
       workflow=standard
 
-# Personal account with explicit repos
+# Personal account / explicit repos (union with custom-properties if both given)
 - uses: savvy-web/silk-sync-action@v1
   with:
-    app-id: ${{ secrets.APP_ID }}
+    app-client-id: ${{ secrets.APP_CLIENT_ID }}
     app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
     config-file: .github/silk.config.json
     repos: |
       my-repo-1
-      my-repo-2
-      my-repo-3
-
-# Combined: custom properties + explicit repos (union)
-- uses: savvy-web/silk-sync-action@v1
-  with:
-    app-id: ${{ secrets.APP_ID }}
-    app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
-    config-file: .github/silk.config.json
-    custom-properties: |
-      workflow=standard
-      open-source=true
-    repos: |
-      special-repo-without-properties
-```
-
-### Architecture Diagram
-
-```text
-+-------------------------------------------------------------------+
-|                      GitHub Actions Runner                         |
-|                                                                    |
-|  PRE (dist/pre.js) -- NodeRuntime.runMain                          |
-|  +---------------------------------------------------------------+ |
-|  |  1. Parse + validate all inputs (core.getInput)               | |
-|  |  2. Generate GitHub App installation token                    | |
-|  |     (@octokit/auth-app + @octokit/request)                    | |
-|  |  3. Save token + inputs to core.saveState()                   | |
-|  |  NOTE: Config loading deferred to main (repo not checked out) | |
-|  +---------------------------------------------------------------+ |
-|                              |                                     |
-|                              v                                     |
-|  MAIN (dist/main.js) -- NodeRuntime.runMain                        |
-|  +---------------------------------------------------------------+ |
-|  |  1. Retrieve token + inputs from core.getState()              | |
-|  |  2. Load + validate config (SilkConfig Effect Schema)         | |
-|  |  3. Create service layer: makeAppLayer(token)                 | |
-|  |     (GitHubRestClient + GitHubGraphQLClient via Layer.mergeAll)| |
-|  |  4. Discover repos (custom properties AND/OR explicit list)   | |
-|  |  5. Resolve projects (GraphQL, in-memory cache)               | |
-|  |  6. For each repo (sequential, 1s delay):                     | |
-|  |     a. Sync labels (create/update/remove)                     | |
-|  |     b. Sync settings (diff + PATCH only changed keys)         | |
-|  |     c. Link to project (GraphQL)                              | |
-|  |     d. Backfill issues/PRs (paginated, 100ms delay)           | |
-|  |  7. Generate console summary + step summary (core.summary)    | |
-|  |  8. Set "results" output (structured JSON via aggregateStats) | |
-|  +---------------------------------------------------------------+ |
-|                              |                                     |
-|                              v                                     |
-|  POST (dist/post.js) -- NodeRuntime.runMain                        |
-|  +---------------------------------------------------------------+ |
-|  |  1. Log total duration                                        | |
-|  |  2. Revoke installation token (unless skip-token-revoke)      | |
-|  +---------------------------------------------------------------+ |
-|                                                                    |
-|  Services (via Context.Tag + Layer):                               |
-|    GitHubRestClient --- labels, settings, discovery, rate limits   |
-|    GitHubGraphQLClient --- projects V2 (resolve, link, backfill)   |
-|    @actions/core --- inputs, outputs, state, summary               |
-+-------------------------------------------------------------------+
+      owner/my-repo-2
 ```
 
 ---
 
 ## Module Structure
 
-### Directory Layout
-
 ```text
 src/
-+-- pre.ts                        # Pre: input validation + token generation
-+-- main.ts                       # Main: config loading + sync orchestration
-+-- post.ts                       # Post: token revocation + cleanup
-+-- lib/
-    +-- config/
-    |   +-- load.ts               # Load and validate config JSON file
-    |   +-- load.test.ts          # Config loading tests
-    +-- discovery/
-    |   +-- index.ts              # Unified discovery (org + personal)
-    |   +-- index.test.ts         # Discovery integration tests
-    |   +-- org.ts                # Org custom property discovery
-    |   +-- personal.ts           # Explicit repo list discovery
-    +-- github/
-    |   +-- auth.ts               # GitHub App auth (token gen + revoke)
-    +-- rate-limit/
-    |   +-- throttle.ts           # Rate limit checking and throttling
-    |   +-- throttle.test.ts      # Rate limit tests
-    +-- reporting/
-    |   +-- console.ts            # Console summary output
-    |   +-- console.test.ts       # Console reporting tests
-    |   +-- summary.ts            # GitHub Actions step summary
-    |   +-- summary.test.ts       # Step summary tests
-    +-- schemas/
-    |   +-- index.ts              # All Effect Schema definitions
-    |   +-- index.test.ts         # Schema round-trip tests
-    |   +-- errors.ts             # TaggedError definitions
-    |   +-- errors.test.ts        # Error type tests
-    +-- services/
-    |   +-- types.ts              # Service interfaces + Context.Tags
-    |   +-- index.ts              # makeAppLayer (combined layer)
-    |   +-- rest.ts               # GitHubRestClient implementation
-    |   +-- graphql.ts            # GitHubGraphQLClient implementation
-    +-- sync/
-    |   +-- index.ts              # Per-repo sync orchestration
-    |   +-- index.test.ts         # Sync orchestration tests
-    |   +-- labels.ts             # Label sync logic
-    |   +-- labels.test.ts        # Label sync tests
-    |   +-- settings.ts           # Settings diff and apply
-    |   +-- settings.test.ts      # Settings sync tests
-    |   +-- projects.ts           # Project resolve, link, backfill
-    |   +-- projects.test.ts      # Project sync tests
-    +-- inputs.ts                 # Action input parsing
-    +-- inputs.test.ts            # Input parsing tests
-    +-- logging.ts                # Debug/info logging utilities
-    +-- test-helpers.ts           # Mock layer factories for tests
++-- pre.ts                  # Pre entrypoint: REQUIRED_PERMISSIONS + GitHubToken.provision
++-- main.ts                 # Main entrypoint: Action.run(program, { layer: MainLive })
++-- post.ts                 # Post entrypoint: duration log + GitHubToken.dispose
++-- program.ts              # Main Effect program (orchestration body)
++-- layers/
+|   +-- app.ts              # PreLive / MainLive / PostLive layer compositions
++-- schemas.ts              # SilkConfig, domain types, ResultsOutput
++-- errors.ts               # DiscoveryError, InvalidInputError (TaggedError)
++-- state.ts                # StartTimeState (ActionState Schema class)
++-- inputs.ts               # parseInputs -> SilkInputs
++-- github/
+|   +-- reads.ts            # typed REST wrappers over GitHubClient (incl. custom-properties via octokit.request)
++-- discovery/
+|   +-- index.ts            # discoverRepos: union + dedupe
+|   +-- customProperties.ts # discoverByCustomProperties (AND-match)
+|   +-- explicit.ts         # discoverByExplicitList
++-- sync/
+|   +-- processRepos.ts     # ErrorAccumulator.forEachAccumulate over repos
+|   +-- syncRepo.ts         # per-repo orchestration (labels -> settings -> project)
+|   +-- labels.ts           # syncLabels
+|   +-- settings.ts         # syncSettings (SYNCABLE_KEYS diff)
+|   +-- projects.ts         # resolveProjects (cache) + syncProject (link + backfill)
++-- reporting/
+    +-- stats.ts            # aggregateStats -> SyncStats
+    +-- summary.ts          # buildSummaryMarkdown (GithubMarkdown)
 lib/
 +-- scripts/
-    +-- generate-schema.ts        # Build-time JSON Schema generation
+    +-- generate-schema.ts  # build-time JSON Schema generation from SilkConfig
 ```
 
-### Module Responsibilities
-
-#### `src/pre.ts` - Pre Step
-
-Parses inputs, generates token, and saves state. Config loading is
-deferred to the main step because the pre step runs before
-`actions/checkout`, so the config file is not yet on disk. Uses
-`NodeRuntime.runMain()` from `@effect/platform-node`.
-
-```typescript
-const program = Effect.gen(function* () {
-  const startTime = Date.now();
-  core.saveState("startTime", String(startTime));
-
-  // 1. Parse and validate all inputs
-  const inputs = yield* parseInputs;
-  core.saveState("inputs", JSON.stringify(inputs));
-
-  // 2. Generate GitHub App installation token
-  const tokenInfo = yield* generateInstallationToken(inputs.appId, inputs.appPrivateKey);
-  core.saveState("token", tokenInfo.token);
-  core.saveState("skipTokenRevoke", String(inputs.skipTokenRevoke));
-  core.setSecret(tokenInfo.token);
-}).pipe(
-  Effect.catchAll((error) =>
-    Effect.sync(() => {
-      const message = error instanceof Error ? error.message : String(error);
-      core.setFailed(`Pre step failed: ${message}`);
-    }),
-  ),
-);
-
-NodeRuntime.runMain(program);
-```
-
-**Note:** The pre step validates inputs *first* (fail fast), then generates
-the token. Obviously-invalid inputs (e.g. missing discovery method) are
-caught before any API calls are made. Config loading was intentionally
-moved out of the pre step: the pre step runs before `actions/checkout`,
-so the repository (and config file) is not yet available. The token is
-no longer exposed as an output (removed for security -- unnecessary
-exposure of a short-lived credential).
-
-#### `src/main.ts` - Main Step
-
-Retrieves token and inputs from state, loads and validates the config
-file, discovers repos, runs the sync engine, and sets the structured
-`results` output. The inner `Effect.gen` is provided the service layer
-via `Effect.provide(appLayer)`.
-
-```typescript
-const program = Effect.gen(function* () {
-  const token = core.getState("token");
-  const inputs: ActionInputs = JSON.parse(core.getState("inputs"));
-  const org = context.repo.owner;
-
-  // Load config here (deferred from pre -- repo not checked out until now)
-  const config = yield* loadAndValidateConfig(inputs.configFile);
-
-  const appLayer = makeAppLayer(token);
-
-  yield* Effect.gen(function* () {
-    const repos = yield* discoverRepos(org, inputs);
-    const projectNumbers = inputs.syncProjects
-      ? extractProjectNumbers(repos) : [];
-    const projectCache = yield* resolveProjects(org, projectNumbers);
-    const results = yield* processRepos(repos, config, projectCache, inputs);
-
-    printConsoleSummary(results, inputs.dryRun);
-    yield* Effect.promise(() =>
-      writeStepSummary(results, projectCache, inputs.dryRun, ...),
-    );
-
-    // Structured results output
-    const stats = aggregateStats(results);
-    core.setOutput("results", JSON.stringify({
-      success: failedRepos.length === 0,
-      dryRun: inputs.dryRun,
-      repos: { total: stats.total, succeeded: stats.succeeded, failed: stats.failed },
-      labels: stats.labels,
-      settings: stats.settings,
-      projects: stats.projects,
-      errors: failedRepos.map((r) => ({ repo: `${r.owner}/${r.repo}`, details: r.errors })),
-    }));
-  }).pipe(
-    Effect.provide(appLayer),
-    Effect.catchAll((error) =>
-      Effect.sync(() => core.setFailed(`Main step failed: ${message}`)),
-    ),
-  );
-});
-
-NodeRuntime.runMain(program);
-```
-
-**Note:** `extractProjectNumbers()` reads custom properties
-(`project-tracking`, `project-number`) from discovered repos to
-determine which projects to resolve. This is done in `main.ts` rather
-than in the discovery layer. Config loading was moved here from the
-pre step because the pre step runs before `actions/checkout` and the
-config file is not yet on disk.
-
-#### `src/post.ts` - Post Step
-
-Revokes token and logs duration. Handles missing token gracefully.
-
-```typescript
-const program = Effect.gen(function* () {
-  const startTime = core.getState("startTime");
-  if (startTime) {
-    const duration = Date.now() - Number.parseInt(startTime, 10);
-    core.info(`Total duration: ${(duration / 1000).toFixed(1)}s`);
-  }
-
-  const skipRevoke = core.getState("skipTokenRevoke") === "true";
-  if (skipRevoke) return;
-
-  const token = core.getState("token");
-  if (!token) return;
-
-  yield* revokeInstallationToken(token).pipe(
-    Effect.catchAll((e) => {
-      core.warning(`Failed to revoke token: ${e.message}`);
-      return Effect.void;
-    }),
-  );
-});
-
-NodeRuntime.runMain(program);
-```
-
-#### `src/lib/config/load.ts` - Configuration Loader
-
-Loads and validates user-provided config JSON file using Effect Schema.
-
-- Reads file contents via `node:fs/promises.readFile`
-- Parses JSON with `JSON.parse`
-- Validates via `Schema.decodeUnknownEither(SilkConfigSchema)`
-- On validation failure, formats field-level errors using
-  `ArrayFormatter.formatErrorSync()` from `effect/ParseResult`
-- Returns typed `SilkConfig` object or fails with `ConfigLoadError`
-
-#### `lib/scripts/generate-schema.ts` - JSON Schema Generator
-
-Build-time script that generates `silk.config.schema.json` from the
-`SilkConfig` Effect Schema using `JSONSchema.make()`:
-
-```typescript
-import { JSONSchema } from "effect";
-import { SilkConfig } from "../../src/lib/schemas/index.ts";
-
-const jsonSchema = JSONSchema.make(SilkConfig);
-const schemaWithMeta = {
-  ...jsonSchema,
-  $schema: "http://json-schema.org/draft-07/schema#",
-  title: "Silk Sync Configuration",
-  description: "Configuration for the silk-sync workflow...",
-};
-
-await writeFile(OUTPUT_PATH, JSON.stringify(schemaWithMeta, null, "\t"));
-```
-
-This script is run as a Turbo task (`generate:schema`) that depends on
-`types:check` and is a prerequisite of `build:prod`.
-
-#### `src/lib/discovery/` - Repository Discovery
-
-Two discovery strategies unified through `discoverRepos()`:
-
-- **`org.ts` (`discoverByCustomProperties`):** Queries
-  `GET /orgs/{org}/properties/values` via `octokit.request()` (not typed
-  Octokit methods, since this endpoint is not yet covered by Octokit
-  types). Paginates all repos, then filters by user-specified custom
-  property key=value pairs (AND logic, case-insensitive). Maps each
-  matching repo to `DiscoveredRepo` with all its custom properties
-  stored in a `Record<string, string>`.
-- **`personal.ts` (`discoverByExplicitList`):** Validates each repo
-  exists via `octokit.rest.repos.get()`. Supports bare names (owner
-  inferred from org) or `owner/repo` format. Failed validations are
-  logged but do not halt discovery unless all repos fail.
-- **`index.ts` (`discoverRepos`):** Combines both strategies. Merges by
-  `fullName` (case-insensitive). When duplicates exist, custom
-  properties from org discovery take precedence. Fails with
-  `DiscoveryError` if zero repos discovered.
-
-**Key implementation detail:** The `DiscoveredRepo` schema includes
-`customProperties: Schema.Record({ key: Schema.String, value: Schema.String })`
-rather than individual boolean fields like `isStandard` or
-`projectTracking`. Project tracking is determined at sync time by
-checking the `project-tracking` and `project-number` custom properties.
-
-#### `src/lib/sync/` - Sync Operations
-
-Each sync operation is an independent Effect program:
-
-- **`labels.ts` (`syncLabels`):** Compares existing vs desired labels
-  using case-insensitive name matching. Creates missing, updates
-  differing (color, description, casing), optionally removes custom.
-  Each label operation has its own `Effect.catchAll` for error isolation.
-  Returns `{ results: LabelResult[], customLabels: string[] }`.
-
-- **`settings.ts` (`syncSettings`):** Takes the current `GitHubRepo`
-  data (already fetched in `processRepo`), iterates through
-  `SYNCABLE_KEYS`, diffs each against desired config, and PATCHes only
-  changed keys in a single API call. Handles org-enforced 422
-  rejections gracefully by logging them as warnings.
-
-- **`projects.ts`:** Contains three public functions:
-  - `resolveProjects(org, projectNumbers)` - Resolves all unique
-    projects via GraphQL and builds an in-memory `ProjectCache`
-    (`Map<number, ProjectCacheEntry>`). Closed projects are cached as
-    errors.
-  - `syncProject(...)` - Links a repo to a project and optionally
-    backfills items. Reads from the pre-built cache.
-  - Internal `backfillItems()` - Paginates through open issues/PRs
-    (100 per page) via REST, adds each to the project via GraphQL
-    `addProjectV2ItemById`. Handles "already exists" gracefully.
-    100ms delay between items, GraphQL rate limit check every 3 pages.
-
-- **`index.ts` (`processRepos`):** Processes repos sequentially with
-  error accumulation. For each repo: fetches repo data via REST, then
-  calls labels -> settings -> project in order. Error accumulation is
-  done by catching errors into `SyncErrorRecord[]` within the
-  `RepoSyncResult` for each repo. Rate limit check every 10 repos,
-  1s delay between repos.
-
-#### `src/lib/rate-limit/throttle.ts` - Rate Limiting
-
-Monitors GitHub API rate limits with separate REST and GraphQL tracking:
-
-- **`checkRestRateLimit()`:** Called every 10 repos. Uses
-  `Effect.serviceOption(GitHubRestClient)` to gracefully handle
-  cases where the service is not in context. Fetches rate limit via
-  `GET /rate_limit`. Pauses 60s when remaining < 50, warns when
-  remaining < 100.
-- **`checkGraphQLRateLimit()`:** Called every 3 backfill pages. Same
-  `Effect.serviceOption` pattern. Pauses 30s when GraphQL remaining
-  < 100.
-- **Exported constants:** `REST_CHECK_INTERVAL = 10`,
-  `GRAPHQL_CHECK_INTERVAL = 3`, `INTER_REPO_DELAY_MS = 1000`,
-  `INTER_ITEM_DELAY_MS = 100`.
-- **`delay(ms)`:** Simple `Effect.promise` wrapper around `setTimeout`.
-
-**Key pattern:** Both rate limit functions use
-`Effect.serviceOption(GitHubRestClient)` rather than
-`Effect.flatMap(GitHubRestClient, ...)`. This makes them safe to call
-even outside an Effect layer context (they return
-`Number.MAX_SAFE_INTEGER` when the service is unavailable).
-
-#### `src/lib/logging.ts` - Logging
-
-Effect-wrapped logging utilities that respect the `log-level` input:
-
-```typescript
-export function logDebug(message: string): Effect.Effect<void> {
-  return Effect.sync(() => {
-    if (isDebugMode()) {
-      info(`[DEBUG] ${message}`);   // Visible in action output
-    } else {
-      debug(message);               // Hidden unless runner debug on
-    }
-  });
-}
-
-export function logDebugState(label: string, state: unknown): Effect.Effect<void> {
-  return Effect.sync(() => {
-    if (isDebugMode()) {
-      info(`[DEBUG] ${label}:`);
-      info(JSON.stringify(state, null, 2));
-    } else {
-      debug(`${label}: ${JSON.stringify(state)}`);
-    }
-  });
-}
-```
-
-Both functions return `Effect.Effect<void>` with no error channel,
-making them safe to `yield*` anywhere.
-
-#### `src/lib/reporting/` - Reporting
-
-Two reporting targets:
-
-##### `console.ts` - Console Summary
-
-Exports two public items: `printConsoleSummary(results, dryRun)` and
-`aggregateStats(results)`. Both `aggregateStats` and the `SyncStats`
-interface are exported for reuse in `main.ts` to build the structured
-`results` JSON output.
-
-`printConsoleSummary` is a synchronous function (not an Effect) that
-calls `aggregateStats` internally and prints a formatted summary via
-`core.info()`:
-
-```text
-============================================================
-SYNC COMPLETE - SUMMARY
-============================================================
-
-Repositories: 12 processed, 11 succeeded, 1 failed
-
-Label Statistics:
-  Created: 4
-  Updated: 7
-  Unchanged: 203
-  Custom labels found: 12
-
-Settings Statistics:
-  Settings changed: 5
-  Repos with drift: 3
-
-Project Statistics:
-  Repos linked: 2
-  Repos already linked: 6
-  Items added: 14
-  Items already in project: 89
-```
-
-In dry-run mode, the heading changes to "DRY-RUN COMPLETE - SUMMARY"
-and verb prefixes change (e.g. "to Created" instead of "Created").
-
-##### `summary.ts` - GitHub Actions Step Summary
-
-`writeStepSummary(...)` is an async function that uses `core.summary`
-(the `@actions/core` summary API) to generate a rich markdown step
-summary:
-
-1. **Heading** - "Sync Results" or "Dry-Run Sync Results" with
-   mode indicator
-2. **Overview** - Repos processed/succeeded/failed counts
-3. **Label Statistics** - Created/updated/removed totals
-4. **Settings Statistics** - Changed count + repos with drift, with
-   per-repo settings drift details showing
-   `key: "currentValue" -> "desiredValue"` for each changed setting
-5. **Project Statistics** - Per-project breakdown with link status
-   and backfill counts, plus a details table with columns: Repository,
-   Project, Title, Link Status, Backfill, Status
-6. **Partial Failures** - Expandable `<details>` per repo with error
-   details using `summary.addDetails()`
-7. **Custom Labels Detected** - Expandable `<details>` listing
-   non-standard labels per repo using `summary.addDetails()`
-
-The summary is written to the GitHub Actions step summary via
-`summary.write()` (returns a Promise, wrapped in `Effect.promise()` in
-`main.ts`).
+Each source file has a co-located `*.test.ts`. The boundaries worth knowing:
+
+- **Discovery** (`src/discovery/`) produces `DiscoveredRepo[]`. `customProperties.ts` matches AND/case-insensitively over the rows returned by `listOrgRepoProperties`; `explicit.ts` validates each name via `getRepo`; `index.ts` unions and dedupes by lowercased `fullName` (org properties win on conflict) and fails with `DiscoveryError` when nothing is found.
+- **Sync** (`src/sync/`) is a strict delegation chain: `processRepos` -> `ErrorAccumulator.forEachAccumulate` -> `syncRepo` -> `syncLabels` / `syncSettings` / `syncProject`. `syncRepo` never fails (it captures errors into `SyncErrorRecord[]`), so the accumulator's `failures` is always empty and `successes` is every result. See `src/sync/syncRepo.ts` for the exact ordering and the `project-tracking` / `project-number` custom-property gate on project sync.
+- **Projects** (`src/sync/projects.ts`) is two-phase: `resolveProjects` resolves every unique project number once into a `ProjectCache` (`Map<number, ProjectCacheEntry>`, closed/missing projects cached as errors), then `syncProject` reads from that cache to link the repo and optionally backfill open issues/PRs. "Already linked" / "already exists" are detected from the GraphQL error text (`isAlreadyExists`) and treated as success, not failure.
+- **Reporting** (`src/reporting/`) is pure: `aggregateStats` folds `RepoSyncResult[]` into `SyncStats`, and `buildSummaryMarkdown` renders that via the library `GithubMarkdown` helpers. The same `SyncStats` feeds both the step summary and the `results` output in `program.ts`.
 
 ---
 
 ## Schemas and Types
 
-All domain types use `Schema.Struct` with `typeof X.Type` for
-inference (not `Schema.Class`). Errors use `Schema.TaggedError` with
-custom `get message()` getters. Schemas are defined in
-`src/lib/schemas/index.ts` and errors in `src/lib/schemas/errors.ts`.
+Domain schemas live in `src/schemas.ts`; domain errors in `src/errors.ts`. Types use `Schema.Struct` with `typeof X.Type` inference; errors use `Schema.TaggedError` with a custom `get message()`.
 
-### Primitive Schemas
+The cardinal config type is `SilkConfig` (`{ $schema?, labels: LabelDefinition[], settings: RepositorySettings }`). It is the contract for both the user config file and the generated JSON schema, so its shape must stay stable. `RepositorySettings` enumerates the syncable keys (mirrored by `SYNCABLE_KEYS` in `src/sync/settings.ts`).
 
-```typescript
-import { Schema } from "effect";
+`DiscoveredRepo` stores all custom properties as a flat `Record<string, string>` rather than named boolean fields; project tracking is decided at sync time by reading `project-tracking` / `project-number` from that map. `RepoSyncResult` is the per-repo outcome and `ResultsOutput` is the JSON output contract (the Schema passed to `ActionOutputs.setJson`). See `src/schemas.ts` for full field lists; do not enumerate them here.
 
-export const NonEmptyString = Schema.String.pipe(
-  Schema.minLength(1, { message: () => "Value must not be empty" })
-);
+Raw GitHub REST response shapes (`GitHubRepo`, `GitHubLabel`, `GitHubIssue`, `OrgRepoProperty`) are plain TypeScript interfaces in `src/github/reads.ts`, not Effect schemas, since they describe Octokit responses rather than validated domain data.
 
-export const HexColor = Schema.String.pipe(
-  Schema.pattern(/^[0-9a-fA-F]{6}$/, {
-    message: () => "Must be a 6-digit hex color (e.g. 'd73a4a')",
-  })
-);
-
-export const LogLevel = Schema.Literal("info", "debug");
-export const LabelOperation = Schema.Literal("created", "updated", "removed", "unchanged");
-export const ProjectLinkStatus = Schema.Literal("linked", "already", "dry-run", "error", "skipped");
-export const SquashMergeTitle = Schema.Literal("PR_TITLE", "COMMIT_OR_PR_TITLE");
-export const SquashMergeMessage = Schema.Literal("PR_BODY", "COMMIT_MESSAGES", "BLANK");
-```
-
-### Configuration Schema
-
-```typescript
-export const LabelDefinition = Schema.Struct({
-  name: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(50)),
-  description: Schema.String.pipe(Schema.maxLength(100)),
-  color: HexColor,
-});
-
-export const RepositorySettings = Schema.Struct({
-  has_wiki: Schema.optional(Schema.Boolean),
-  has_issues: Schema.optional(Schema.Boolean),
-  // ... 11 more optional settings fields
-  allow_auto_merge: Schema.optional(Schema.Boolean),
-});
-
-export const SilkConfig = Schema.Struct({
-  $schema: Schema.optional(Schema.String),  // allows $schema reference
-  labels: Schema.Array(LabelDefinition),
-  settings: RepositorySettings,
-});
-
-export const decodeSilkConfig = Schema.decodeUnknownEither(SilkConfig);
-```
-
-**Note:** `SilkConfig` includes an optional `$schema` field so users
-can reference the JSON schema file in their config without validation
-errors.
-
-### Discovery Schemas
-
-```typescript
-export const DiscoveredRepo = Schema.Struct({
-  name: NonEmptyString,
-  owner: NonEmptyString,
-  fullName: NonEmptyString,
-  nodeId: NonEmptyString,
-  customProperties: Schema.Record({
-    key: Schema.String,
-    value: Schema.String,
-  }),
-});
-
-export const ProjectInfo = Schema.Struct({
-  id: NonEmptyString,
-  title: NonEmptyString,
-  number: Schema.Number.pipe(Schema.positive()),
-  closed: Schema.Boolean,
-});
-
-export const InstallationToken = Schema.Struct({
-  token: NonEmptyString,
-  expiresAt: Schema.String,
-  installationId: Schema.Number.pipe(Schema.positive()),
-  appSlug: Schema.String,
-});
-```
-
-**Key difference from original design:** `DiscoveredRepo` stores
-custom properties as a `Record<string, string>` (a flat map of all
-property values from the org) rather than individual boolean fields
-like `isStandard` or `projectTracking`. This makes the schema generic
-and allows downstream code to inspect any custom property at sync time.
-
-### Result Schemas
-
-```typescript
-export const RepoSyncResult = Schema.Struct({
-  repo: NonEmptyString,
-  owner: NonEmptyString,
-  labels: Schema.Array(LabelResult),
-  customLabels: Schema.Array(Schema.String),
-  settingChanges: Schema.Array(SettingChange),
-  settingsApplied: Schema.Boolean,
-  projectNumber: Schema.NullOr(Schema.Number),
-  projectTitle: Schema.NullOr(Schema.String),
-  projectLinkStatus: Schema.NullOr(ProjectLinkStatus),
-  itemsAdded: Schema.Number,
-  itemsAlreadyPresent: Schema.Number,
-  errors: Schema.Array(SyncErrorRecord),
-  success: Schema.Boolean,
-});
-```
-
-**Note:** `RepoSyncResult` does not include an `isStandard` field.
-Whether a repo is "standard" is determined by its custom properties at
-runtime, not stored in the result schema.
-
-### Error Schemas
-
-All errors use `Schema.TaggedError` with custom `get message()`
-getters and computed helper properties:
-
-```typescript
-export class GitHubApiError extends Schema.TaggedError<GitHubApiError>()(
-  "GitHubApiError",
-  {
-    operation: NonEmptyString,
-    statusCode: Schema.optional(Schema.Number.pipe(Schema.between(100, 599))),
-    reason: NonEmptyString,
-  },
-) {
-  get message() {
-    const status = this.statusCode ? ` (${this.statusCode})` : "";
-    return `GitHub API error${status} during ${this.operation}: ${this.reason}`;
-  }
-  get isRateLimited(): boolean { return this.statusCode === 429; }
-  get isNotFound(): boolean { return this.statusCode === 404; }
-  get isValidationFailed(): boolean { return this.statusCode === 422; }
-  get isRetryable(): boolean {
-    return this.isRateLimited || (this.statusCode !== undefined && this.statusCode >= 500);
-  }
-}
-
-export class GraphQLError extends Schema.TaggedError<GraphQLError>()(
-  "GraphQLError",
-  {
-    operation: NonEmptyString,
-    reason: NonEmptyString,
-  },
-) {
-  get message() {
-    return `GraphQL error during ${this.operation}: ${this.reason}`;
-  }
-  get isAlreadyExists(): boolean {
-    return this.reason.includes("already") || this.reason.includes("exists");
-  }
-}
-```
-
-**Note:** `GitHubApiError` uses a `reason` field (not `message`) for the
-error description to avoid shadowing the computed `get message()` getter.
-
-**Full error type union:**
-
-```typescript
-export type ActionError =
-  | InvalidInputError    // Fatal - fails in pre step
-  | ConfigLoadError      // Fatal - fails in main step
-  | AuthenticationError  // Fatal - fails in pre step
-  | DiscoveryError       // Fatal - no repos found
-  | GitHubApiError       // Per-operation
-  | GraphQLError         // Per-operation
-  | LabelSyncError       // Per-label, non-fatal
-  | SettingsSyncError    // Per-repo, non-fatal
-  | ProjectSyncError;    // Per-project, non-fatal
-```
+Domain errors are only `InvalidInputError` (fatal, raised during input parsing) and `DiscoveryError` (fatal, raised when no repos are discovered). All transport-level failures surface as the library's `GitHubClientError` / `GitHubGraphQLError`, which carry a `reason` string and (for REST) a `status` code used in `syncSettings` to special-case 422 org-policy rejections.
 
 ---
 
-## Effect Services
+## Service Layer
 
-### Service Interface Separation
+The service layer is entirely supplied by `@savvy-web/github-action-effects`. This action defines no `Context.Tag` services of its own; it composes library layers in `src/layers/app.ts` and consumes the library tags directly.
 
-Service interfaces and `Context.Tag` definitions live in
-`src/lib/services/types.ts`, separate from their implementations.
-This avoids circular imports and allows test code to import service
-types without pulling in Octokit.
-
-### GitHubRestClient Service
-
-Defined in `src/lib/services/types.ts`, implemented in
-`src/lib/services/rest.ts`:
-
-```typescript
-export interface GitHubRestClientService {
-  readonly getOrgRepoProperties: (org: string) =>
-    Effect.Effect<ReadonlyArray<OrgRepoProperty>, GitHubApiError>;
-  readonly getRepo: (owner: string, repo: string) =>
-    Effect.Effect<GitHubRepo, GitHubApiError>;
-  readonly listLabels: (owner: string, repo: string) =>
-    Effect.Effect<ReadonlyArray<GitHubLabel>, GitHubApiError>;
-  readonly createLabel: (owner: string, repo: string, label: LabelDefinition) =>
-    Effect.Effect<void, GitHubApiError>;
-  readonly updateLabel: (owner: string, repo: string, currentName: string,
-    label: LabelDefinition) => Effect.Effect<void, GitHubApiError>;
-  readonly deleteLabel: (owner: string, repo: string, name: string) =>
-    Effect.Effect<void, GitHubApiError>;
-  readonly updateRepo: (owner: string, repo: string,
-    settings: Record<string, unknown>) => Effect.Effect<void, GitHubApiError>;
-  readonly listOpenIssues: (owner: string, repo: string, page: number) =>
-    Effect.Effect<ReadonlyArray<GitHubIssue>, GitHubApiError>;
-  readonly getRateLimit: () =>
-    Effect.Effect<RateLimitInfo, GitHubApiError>;
-}
-
-export class GitHubRestClient extends Context.Tag("GitHubRestClient")<
-  GitHubRestClient, GitHubRestClientService
->() {}
-```
-
-**Implementation details (rest.ts):**
-
-- Each method creates a fresh `Octokit` instance with `new Octokit({ auth: token })`
-- `getOrgRepoProperties` uses `octokit.request("GET /orgs/{org}/properties/values")`
-  instead of typed REST methods because this endpoint lacks Octokit types
-- All list endpoints (`listLabels`, `listOpenIssues`, `getOrgRepoProperties`)
-  implement manual pagination loops with `per_page: 100`
-- Errors are caught and wrapped in `GitHubApiError` via `Effect.tryPromise`
-  with a `getStatusCode()` helper that extracts `.status` from Octokit errors
-
-### GitHubGraphQLClient Service
-
-Defined in `src/lib/services/types.ts`, implemented in
-`src/lib/services/graphql.ts`:
-
-```typescript
-export interface GitHubGraphQLClientService {
-  readonly resolveProject: (org: string, projectNumber: number) =>
-    Effect.Effect<ProjectInfo, GraphQLError>;
-  readonly linkRepoToProject: (projectId: string, repoNodeId: string) =>
-    Effect.Effect<void, GraphQLError>;
-  readonly addItemToProject: (projectId: string, contentId: string) =>
-    Effect.Effect<void, GraphQLError>;
-}
-
-export class GitHubGraphQLClient extends Context.Tag("GitHubGraphQLClient")<
-  GitHubGraphQLClient, GitHubGraphQLClientService
->() {}
-```
-
-**Implementation details (graphql.ts):**
-
-- Uses `octokit.graphql<T>()` for typed GraphQL operations
-- Three GraphQL operations defined as string constants:
-  `RESOLVE_PROJECT_QUERY`, `LINK_REPO_MUTATION`, `ADD_ITEM_MUTATION`
-- `resolveProject` returns null-checked `ProjectInfo` (throws if
-  `data.organization.projectV2` is null)
-- All errors wrapped in `GraphQLError` via `Effect.tryPromise`
-
-### Combined Layer
-
-```typescript
-// src/lib/services/index.ts
-export function makeAppLayer(
-  token: string
-): Layer.Layer<GitHubRestClient | GitHubGraphQLClient> {
-  return Layer.mergeAll(
-    makeGitHubRestClientLayer(token),
-    makeGitHubGraphQLClientLayer(token),
-  );
-}
-```
-
-This combined layer is created once in `main.ts` and provided to the
-inner Effect program via `Effect.provide(appLayer)`.
-
-### GitHub API Data Types
-
-Raw GitHub API response types are defined as TypeScript interfaces in
-`src/lib/services/types.ts`:
-
-- `GitHubLabel` - `{ id, name, description, color }`
-- `GitHubRepo` - Full repo data including all settings fields and
-  `node_id`
-- `GitHubIssue` - `{ id, node_id, number, title, pull_request? }`
-- `OrgRepoProperty` - Custom property values for a repo (includes
-  `repository_node_id`)
-- `RateLimitInfo` - `{ core: { remaining, reset }, graphql: { remaining, reset } }`
+- **`Action.run`** — entrypoint runner for each phase (replaces `NodeRuntime.runMain`).
+- **`GitHubToken`** — App-token lifecycle: `provision({ permissions })` in `pre`, `client()` (a `Layer`) in `MainLive`, `dispose()` in `post`. Replaces hand-rolled `@octokit/auth-app` auth and `DELETE /installation/token` revocation.
+- **`GitHubClient`** — resilient REST client with `rest(opName, fn)` for single calls and `paginate<T>(opName, fn)` for paged calls; automatic 429/5xx retry + backoff. Replaces the old `GitHubRestClient` Tag and the entire `rate-limit/` module. `src/github/reads.ts` wraps it into typed helpers (`getRepo`, `listLabels`, `createLabel`, `updateLabel`, `deleteLabel`, `updateRepo`, `listOpenIssues`, `listOrgRepoProperties`).
+- **`GitHubGraphQL`** — `query`/`mutation` for Projects V2; layered on `GitHubClient`. Replaces the old `GitHubGraphQLClient` Tag. Used directly in `src/sync/projects.ts`.
+- **`ConfigLoader`** — `loadJson(path, Schema)` reads and validates the user config in `program.ts`. Replaces the old `src/lib/config/load.ts`.
+- **`ActionState`** — Schema-typed cross-phase state (`save` / `getOptional`), used for `StartTimeState`. Replaces `core.saveState`/`getState`.
+- **`ActionOutputs`** — `set`, `setJson(name, value, Schema)`, `summary(markdown)`, `setFailed`. Used in `program.ts`.
+- **`ErrorAccumulator.forEachAccumulate`** — sequential per-repo iteration with success/failure accumulation, used in `src/sync/processRepos.ts`.
+- **`GithubMarkdown` / `Step`** — `GithubMarkdown` builds the summary tables (`src/reporting/summary.ts`); `Step.groupStep` wraps discovery and sync into collapsible step groups in `program.ts`.
 
 ---
 
 ## Data Flow
 
-### Main Sync Flow
-
 ```text
-PRE STEP (runs before actions/checkout -- config file not on disk):
-[core.getInput("app-id", { required: true })]
-[core.getInput("app-private-key", { required: true })]
-[core.getInput("config-file", { required: true })]
-      |
-      v
-[parseInputs] --> ActionInputs (validated)
-      |
-      v
-[generateInstallationToken] --> InstallationToken
-      |                         (@octokit/auth-app + @octokit/request)
-      v
-[core.saveState: token, inputs, startTime, skipTokenRevoke]
-(NOTE: no config saved -- deferred to main step)
+PRE (Action.run(pre, { layer: PreLive })):
+[ActionState.save startTime <- StartTimeState]
+[GitHubToken.provision({ permissions: REQUIRED_PERMISSIONS })]
+   -> persists installation token; asserts permissions; fails fast otherwise
+   (no config load -- runs before actions/checkout)
 
-MAIN STEP:
-[core.getState: token, inputs]
+MAIN (Action.run(program, { layer: MainLive })):
+[GitHubClient from persisted token]  [ActionOutputs]
       |
       v
-[loadAndValidateConfig(inputs.configFile)] --> SilkConfig
-      |                     (Schema.decodeUnknownEither + ArrayFormatter)
-      v
-[makeAppLayer(token)] --> Layer<GitHubRestClient | GitHubGraphQLClient>
+[parseInputs] -> SilkInputs            (InvalidInputError if no discovery method)
       |
       v
-[discoverRepos(org, inputs)]
-  +-- Custom properties: GET /orgs/{org}/properties/values (paginated)
-  |   +-- Filter: all key=value pairs match (AND, case-insensitive)
-  +-- Explicit repos: GET /repos/{owner}/{repo} for each
-  |   +-- Validates existence, gets node_id
-  +-- Union + deduplicate by fullName --> DiscoveredRepo[]
+[ConfigLoader.loadJson(configFile, SilkConfig)] -> SilkConfig
       |
       v
-[extractProjectNumbers(repos)]
-  +-- Read "project-tracking" and "project-number" custom properties
-  +-- Return unique project numbers
+[Step.groupStep "Discover repositories": discoverRepos(org, inputs)]
+  +-- custom properties: listOrgRepoProperties (paginate via octokit.request) -> AND/case-insensitive match
+  +-- explicit repos:    getRepo per name (validate, capture node_id)
+  +-- union + dedupe by lowercased fullName (org props win) -> DiscoveredRepo[]
       |
       v
-[resolveProjects(org, projectNumbers)] --> ProjectCache
-  +-- For each unique projectNumber:
-      +-- GraphQL: organization.projectV2(number) --> ProjectInfo
-      +-- Closed projects cached as errors
+[projectNumbersOf(repos)]  (project-tracking=="true" -> project-number)
       |
       v
-[processRepos(repos, config, projectCache, inputs)] (sequential)
-  |
-  For each repo (1s delay between, rate check every 10):
-  +-- [getRepo] --> GitHubRepo (for node_id + current settings)
-  +-- [syncLabels]
-  |   +-- List existing labels (paginated)
-  |   +-- For each desired label:
-  |   |   +-- Missing --> create (or log [DRY-RUN])
-  |   |   +-- Differs --> update color/description/casing (or log)
-  |   |   +-- Matches --> skip
-  |   +-- If remove-custom-labels: delete non-standard labels
-  |
-  +-- [syncSettings] (if sync-settings enabled)
-  |   +-- Diff SYNCABLE_KEYS against current repo data
-  |   +-- PATCH only changed keys (single API call)
-  |   +-- Handle 422 (org-enforced) as warning
-  |
-  +-- [syncProject] (if sync-projects and project-tracking=true)
-  |   +-- Link repo via GraphQL linkProjectV2ToRepository
-  |   +-- Handle "already linked" gracefully
-  |   +-- [backfillItems] (if !skip-backfill)
-  |       +-- Paginate issues/PRs (100/page)
-  |       +-- addProjectV2ItemById for each (100ms delay)
-  |       +-- Handle "already exists" gracefully
-  |       +-- GraphQL rate check every 3 pages
+[resolveProjects(org, numbers)] -> ProjectCache  (GraphQL; closed/missing cached as errors)
       |
       v
-[RepoSyncResult[]] --> Aggregate
+[Step.groupStep "Sync repositories": processRepos(...)]
+  ErrorAccumulator.forEachAccumulate over repos (sequential):
+    syncRepo:
+      +-- getRepo (node_id + current settings; failure captured, non-fatal)
+      +-- syncLabels   (create / update / remove-custom / unchanged)
+      +-- syncSettings (diff SYNCABLE_KEYS, PATCH changed keys; 422 -> warning) [if sync-settings]
+      +-- syncProject  (link via cache; backfill open issues unless skip-backfill) [if sync-projects & tracking]
+  -> RepoSyncResult[]
       |
       v
-[printConsoleSummary] --> core.info (synchronous)
-[writeStepSummary] --> core.summary.write() (async, via Effect.promise)
-[aggregateStats(results)] --> SyncStats
-[core.setOutput("results", JSON.stringify({...}))]
-  +-- success, dryRun, repos, labels, settings, projects, errors
+[aggregateStats] -> SyncStats
+      |
+      +-- ActionOutputs.summary(buildSummaryMarkdown(stats, inputs))
+      +-- ActionOutputs.setJson("results", { success, dryRun, repos, labels, settings, projects, errors }, ResultsOutput)
+      +-- ActionOutputs.set("success" | "repos-total" | "repos-succeeded" | "repos-failed")
+
+POST (Action.run(post, { layer: PostLive })):
+[ActionState.getOptional startTime] -> log total duration
+[GitHubToken.dispose()] -> revoke installation token (warn on failure; defects swallowed)
 ```
 
-### Rate Limit Flow
-
-```text
-[Every 10 repos: checkRestRateLimit()]
-      |
-      v
-[Effect.serviceOption(GitHubRestClient)]
-      |
-      v
-[GET /rate_limit]
-      |
-      +-- remaining >= 100 --> continue
-      +-- remaining >= 50  --> log warning, continue
-      +-- remaining < 50   --> pause 60s, then continue
-
-[Every 3 backfill pages: checkGraphQLRateLimit()]
-      |
-      v
-[Effect.serviceOption(GitHubRestClient)]
-      |
-      v
-[GET /rate_limit (graphql resource)]
-      |
-      +-- remaining >= 100 --> continue
-      +-- remaining < 100  --> pause 30s, then continue
-```
+Resilience (rate-limit/429 handling, 5xx retry, backoff) is internal to `GitHubClient` and `GitHubGraphQL`; there is no separate rate-limit flow in this action.
 
 ---
 
 ## Integration Points
 
-### External Integrations
+### GitHub REST API
 
-#### GitHub REST API
+Authentication is a GitHub App installation token provisioned by `GitHubToken` in `pre` and turned into an authenticated `GitHubClient` in `MainLive`. Endpoints used (all via `src/github/reads.ts`): repo get/update, label list/create/update/delete, open issues list and `GET /orgs/{org}/properties/values` (via `octokit.request` through `paginate`). See `src/github/reads.ts` for the exact operation-name keys.
 
-**Authentication:** GitHub App installation token (generated in pre
-step via `@octokit/auth-app` and `@octokit/request`)
+### GitHub GraphQL API
 
-**Key endpoints:**
+Three Projects V2 operations in `src/sync/projects.ts`: `resolveProject` (query), `linkRepoToProject` and `addItemToProject` (mutations), all via `GitHubGraphQL`.
 
-| Endpoint | Method | Purpose |
-| :------- | :----- | :------ |
-| `/orgs/{org}/properties/values` | GET | Discover repos via custom properties (via `octokit.request()`) |
-| `/repos/{owner}/{repo}/labels` | GET | List existing labels (paginated) |
-| `/repos/{owner}/{repo}/labels` | POST | Create label |
-| `/repos/{owner}/{repo}/labels/{name}` | PATCH | Update label |
-| `/repos/{owner}/{repo}/labels/{name}` | DELETE | Delete label |
-| `/repos/{owner}/{repo}` | GET | Get repo settings + node_id |
-| `/repos/{owner}/{repo}` | PATCH | Update repo settings |
-| `/repos/{owner}/{repo}/issues` | GET | List open issues/PRs (paginated) |
-| `/rate_limit` | GET | Check rate limits |
+### Required App permissions
 
-#### GitHub GraphQL API
+Declared in `REQUIRED_PERMISSIONS` (`src/pre.ts`) and enforced at provision time: `administration: write` (labels + settings), `issues: write`, `organization_custom_properties: read` (discovery), `organization_projects: write` (linking + backfill). The workflow itself needs only `contents: read`.
 
-**Key operations:**
-
-```graphql
-# Resolve project
-query ResolveProject($org: String!, $number: Int!) {
-  organization(login: $org) {
-    projectV2(number: $number) {
-      id, title, number, closed
-    }
-  }
-}
-
-# Link repo to project
-mutation LinkRepoToProject($projectId: ID!, $repositoryId: ID!) {
-  linkProjectV2ToRepository(input: {
-    projectId: $projectId, repositoryId: $repositoryId
-  }) { repository { id } }
-}
-
-# Add item to project
-mutation AddItemToProject($projectId: ID!, $contentId: ID!) {
-  addProjectV2ItemById(input: {
-    projectId: $projectId, contentId: $contentId
-  }) { item { id } }
-}
-```
-
-#### GitHub App Authentication
-
-**Flow:**
-
-1. **pre.ts:** Creates `createAppAuth()` from `@octokit/auth-app` with
-   `appId`, `privateKey`, and `request` (from `@octokit/request`).
-   Authenticates as the app, looks up the installation ID via
-   `GET /repos/{owner}/{repo}/installation`, then generates an
-   installation token. Also fetches the app slug via `GET /app`
-   (with fallback to "unknown" on failure). Saves token to state.
-2. **main.ts:** Retrieves token from state, creates Octokit clients.
-3. **post.ts:** Revokes token via `DELETE /installation/token` using
-   `@octokit/request` directly.
-
-#### GitHub Actions Runtime
-
-- `@actions/core`: `getInput()`, `setOutput()`, `saveState()`,
-  `getState()`, `setSecret()`, `setFailed()`, `info()`, `debug()`,
-  `warning()`, `summary` (step summary API)
-- `@actions/github`: `context.repo.owner`, `context.repo.repo`
-
-### Key Dependencies
+### Key dependencies
 
 | Package | Purpose |
 | :------ | :------ |
-| `effect` | Schema, Layer, Context, Effect (core Effect-TS) |
-| `@effect/platform-node` | `NodeRuntime.runMain` for entry points |
-| `@actions/core` | GitHub Actions inputs, outputs, state, summary |
-| `@actions/github` | GitHub Actions context (repo owner/name) |
-| `@octokit/rest` | GitHub REST API client (typed methods) |
-| `@octokit/auth-app` | GitHub App JWT authentication |
-| `@octokit/request` | Raw HTTP requests (for untyped endpoints) |
-| `@savvy-web/github-action-builder` | `@vercel/ncc` bundling + action validation |
+| `effect` | Schema, Layer, Effect (core Effect-TS) |
+| `@effect/platform` / `@effect/platform-node` | `FetchHttpClient`, `NodeContext`, `NodeFileSystem` for layer wiring |
+| `@savvy-web/github-action-effects` | Entrypoints, auth, REST/GraphQL clients, state, outputs, reporting (the service layer) |
+| `@savvy-web/github-action-builder` (dev) | `@vercel/ncc` bundling + `action.yml` validation |
 
-### Required Permissions
-
-For the GitHub App:
-
-| Scope | Level | Purpose |
-| :---- | :---- | :------ |
-| `administration` | write | Label management, settings sync |
-| `issues` | read | List open issues for backfill |
-| `contents` | read | Read repo metadata |
-| `projects` | write | Link repos, add items to projects |
-
-For the workflow:
-
-```yaml
-permissions:
-  contents: read
-```
+The previous direct dependencies on `@actions/core`, `@actions/github`, `@octokit/auth-app`, `@octokit/request` and `@octokit/rest` are gone; those concerns now live behind the library.
 
 ---
 
 ## Error Handling
 
-### Error Accumulation Strategy
+Two-tier strategy:
 
-The action uses per-repo and per-operation error catching so that
-individual failures do not halt the overall run. The main pattern is
-`Effect.catchAll` wrapping each operation to capture errors into
-`SyncErrorRecord[]`:
+- **Fatal (fail the step):** `InvalidInputError` (bad/missing discovery inputs), config-load failures (surfaced by `ConfigLoader`) and `DiscoveryError` (no repos found). These propagate to the top-level `Effect.catchAll` in `program.ts`, which calls `ActionOutputs.setFailed`.
+- **Non-fatal (accumulate and continue):** every per-repo operation. `syncRepo` wraps the repo fetch, label, settings and project work so failures are captured into `SyncErrorRecord[]` rather than thrown. `syncSettings` special-cases REST `status === 422` (org-enforced policy) as a warning. `processRepos` runs repos sequentially through `ErrorAccumulator.forEachAccumulate`; because `syncRepo` never fails, the accumulator's `successes` is the full result list.
 
-```typescript
-// In processRepo: fetch repo data with error capture
-const repoData = yield* rest.getRepo(repo.owner, repo.name).pipe(
-  Effect.catchAll((e) => {
-    errors.push({ target: "repo", operation: "get", error: e.message });
-    return Effect.succeed(null);
-  }),
-);
+### Dry-run mode
 
-// In syncLabels: each label operation catches its own errors
-yield* rest.createLabel(owner, repo, label).pipe(
-  Effect.catchAll((e) =>
-    Effect.fail(new LabelSyncError({ label: label.name, operation: "create", reason: e.reason })),
-  ),
-  Effect.catchAll((e) => {
-    info(`  Failed to create "${label.name}": ${e.message}`);
-    return Effect.succeed(undefined);
-  }),
-);
-
-// In syncSettings: handle 422 org-enforced rejections
-yield* rest.updateRepo(owner, repo, settingsToApply).pipe(
-  Effect.catchAll((e) => {
-    if (e.isValidationFailed) {
-      info(`  Warning: some settings rejected by org policy (422): ${e.reason}`);
-    }
-    return Effect.succeed(false);
-  }),
-);
-```
-
-### Error Categories
-
-| Error Type | Severity | Behavior |
-| :--------- | :------- | :------- |
-| `InvalidInputError` | Fatal | Fail in pre step |
-| `ConfigLoadError` | Fatal | Fail in main step (config loaded after checkout) |
-| `AuthenticationError` | Fatal | Fail in pre step |
-| `DiscoveryError` | Fatal | Fail in main (no repos found) |
-| `GitHubApiError (429)` | Transient | Detected via rate limit checks |
-| `GitHubApiError (404)` | Per-repo | Log warning, continue |
-| `GitHubApiError (422)` | Per-setting | Log org-enforced warning |
-| `GraphQLError` | Per-project | Cache error, skip project repos |
-| `LabelSyncError` | Per-label | Log error, continue to next label |
-| `SettingsSyncError` | Per-repo | Log error, continue to projects |
-| `ProjectSyncError` | Per-repo | Log error, continue to next repo |
-
-### Dry-Run Mode
-
-When `dry-run: true`:
-
-- All read operations execute normally (API discovery, label listing,
-  settings fetching, project resolution)
-- All write operations are skipped (no label creates/updates/deletes,
-  no settings patches, no project links, no backfill adds)
-- Console logs prefix mutations with `[DRY-RUN] Would ...`
-- Results are populated with what would have happened
-- Step summary header shows "Dry-Run Sync Results" with mode indicator
-- All statistics are populated showing what would change
+When `dry-run: true`, reads run normally but every write is skipped; `syncLabels`/`syncSettings` still compute and record the changes that would be made, project link status becomes `"dry-run"`, and the summary header switches to "Silk Sync (dry-run)". Statistics reflect the would-be changes.
 
 ---
 
 ## Testing Strategy
 
-### Test Infrastructure
-
-Tests use a shared `src/lib/test-helpers.ts` module that provides mock
-Effect service layers:
-
-```typescript
-// Create mock REST layer with selective overrides
-export function makeMockRestLayer(overrides: MockRestOverrides = {}): Layer.Layer<GitHubRestClient>
-
-// Create mock GraphQL layer with selective overrides
-export function makeMockGraphQLLayer(overrides: MockGraphQLOverrides = {}): Layer.Layer<GitHubGraphQLClient>
-
-// Create combined mock layer
-export function makeMockLayer(
-  rest?: MockRestOverrides,
-  graphql?: MockGraphQLOverrides,
-): Layer.Layer<GitHubRestClient | GitHubGraphQLClient>
-```
-
-**Default behaviors:**
-
-- `getRepo` returns a `makeDefaultRepo(name)` with sensible defaults
-- `listLabels` returns `[]` (empty)
-- All mutation methods (`createLabel`, `updateLabel`, etc.) succeed
-  with `Effect.void`
-- `getRateLimit` returns 5000 remaining for both REST and GraphQL
-- `resolveProject` fails with "Not mocked" (must be explicitly overridden)
-
-**Pattern for testing Effect programs with services:**
-
-```typescript
-const result = await Effect.runPromise(
-  someEffectFunction(args).pipe(
-    Effect.provide(makeMockLayer({
-      listLabels: () => Effect.succeed([existingLabel]),
-    })),
-  ),
-);
-```
-
-### Test Files
-
-| File | Tests |
-| :--- | :---- |
-| `src/lib/schemas/index.test.ts` | Schema encoding/decoding round-trips |
-| `src/lib/schemas/errors.test.ts` | TaggedError `_tag`, `message`, helper properties |
-| `src/lib/inputs.test.ts` | Custom property parsing, repo parsing, boolean parsing |
-| `src/lib/config/load.test.ts` | Valid/invalid config loading, schema validation errors |
-| `src/lib/discovery/index.test.ts` | Unified discovery, deduplication, empty discovery |
-| `src/lib/sync/labels.test.ts` | Create/update/remove/unchanged, custom label removal |
-| `src/lib/sync/settings.test.ts` | Diff detection, PATCH only changed, 422 handling |
-| `src/lib/sync/projects.test.ts` | Project resolution, linking, backfill pagination |
-| `src/lib/sync/index.test.ts` | Full repo processing orchestration |
-| `src/lib/rate-limit/throttle.test.ts` | Check intervals, pause thresholds |
-| `src/lib/reporting/console.test.ts` | Console summary output format |
-| `src/lib/reporting/summary.test.ts` | Step summary markdown generation |
-
-### Mocking `@actions/core`
-
-Tests that call code using `@actions/core` (inputs, state, logging) use
-`vi.mock("@actions/core")` to mock the module. Input values are
-configured per test via `vi.mocked(core.getInput).mockImplementation()`.
+Vitest with v8 coverage, `pool: "forks"` for Effect-TS compatibility. Every `src` file has a co-located `*.test.ts`. Tests provide the library service tags via Effect layers and run programs with `Effect.runPromise`; mock the library `GitHubClient` / `GitHubGraphQL` / `ActionState` / `ActionOutputs` tags rather than the deleted bespoke services. See the `*.test.ts` files next to each module for the exact fixtures.
 
 ---
 
 ## Build Pipeline
 
-### Turbo Task Graph
+### Turbo task graph
 
 ```text
-types:check --> generate:schema --> build:prod
+types:check -> generate:schema -> build:prod
 ```
 
-**`types:check`** - Runs `tsgo --noEmit` (TypeScript native preview
-compiler) for type checking.
+- **`types:check`** — `tsgo --noEmit`.
+- **`generate:schema`** — runs `lib/scripts/generate-schema.ts` (`JSONSchema.make(SilkConfig)` from `src/schemas.ts`) to produce `silk.config.schema.json`, then `biome format --write`.
+- **`build:prod`** — `github-action-builder build`, driven by `action.config.ts`.
 
-**`generate:schema`** - Runs `lib/scripts/generate-schema.ts` to
-produce `silk.config.schema.json` from the Effect `SilkConfig` schema
-using `JSONSchema.make()`. The output is then formatted with
-`biome format --write`.
+### `action.config.ts`
 
-**`build:prod`** - Runs `github-action-builder build` which uses
-`@vercel/ncc` to bundle each entry point (`src/pre.ts`, `src/main.ts`,
-`src/post.ts`) into single-file outputs at `dist/pre.js`,
-`dist/main.js`, `dist/post.js`.
+Defines the three build entries (`pre`/`main`/`post`), `minify: true`, and an `ignore` list (`xmlbuilder2`, `libxmljs2`, `ajv-formats-draft2019`). Those are optional XML/JSON-validator plugins pulled in transitively by `@cyclonedx/cyclonedx-library` (via the library) that this action never invokes; `ignore` aliases them to a throwing stub that cyclonedx's `_optPlug` wrapper catches and falls through. They are deliberately *ignored*, not declared `externals` (which would mean "present at runtime"). `persistLocal` writes a local copy of the built action to `.github/actions/local`.
 
-### npm Scripts
-
-```bash
-pnpm run build          # Full build via Turbo (types:check -> generate:schema -> build:prod)
-pnpm run build:prod     # Just the ncc bundle step
-pnpm run generate:schema # Just the JSON Schema generation
-pnpm run typecheck      # Turbo types:check
-pnpm run test           # Vitest run
-pnpm run test:coverage  # Vitest with v8 coverage
-pnpm run lint           # Biome check
-pnpm run validate       # github-action-builder validate (checks action.yml)
-```
+Output: `dist/pre.js`, `dist/main.js`, `dist/post.js`.
 
 ---
 
 ## Future Enhancements
 
-### Potential Additions
-
-- **Branch protection rule synchronization** - Sync branch protection
-  rules from config
-- **Ruleset synchronization** - Sync repository rulesets from config
-- **Repository security settings** - Vulnerability alerts, secret
-  scanning
-- **Custom webhook configuration** - Manage webhooks from config
-- **Drift detection reporting (audit mode)** - Report-only mode that
-  shows drift without applying changes
-- **Configuration inheritance** - Base config + per-repo overrides
-- **Event-driven mode** - Sync on repo creation events
-- **Multi-org support** - Sync across multiple organizations
+- Branch protection / ruleset synchronization
+- Repository security settings (vulnerability alerts, secret scanning)
+- Drift-detection / audit-only reporting mode
+- Configuration inheritance (base + per-repo overrides)
+- Multi-org support
 
 ---
 
 ## Related Documentation
 
-**Implementation Plan:**
+**Implementation plan:**
 
-- [Silk Sync Action Plan](../../plans/silk-sync-action.md) - Completed
-  implementation plan with all 8 phases
+- [Silk Sync Action Plan](../plans/silk-sync-action.md)
 
-**Reference Implementation:**
+**Migration reference (on this branch, separate tree):**
 
-- `pnpm-config-dependency-action` - Same Effect-TS patterns, service
-  architecture, and github-action-builder toolchain
+- `docs/superpowers/specs/2026-05-29-silk-sync-effects-migration-design.md` — the migration design spec
+- `docs/superpowers/plans/2026-05-29-silk-sync-effects-migration.md` — the migration implementation plan
 
-**Project Files:**
+**Reference implementation:**
 
-- `action.yml` - Compiled action manifest (node24 runtime)
-- `silk.config.schema.json` - Generated JSON schema for config validation
-- `src/pre.ts` - Pre step: input validation + token generation
-- `src/main.ts` - Main step: config loading + sync orchestration + results output
-- `src/post.ts` - Post step: token revocation
+- `pnpm-config-dependency-action` — same Effect-TS + `@savvy-web/github-action-effects` patterns
 
-**External Design Docs:**
+**Project files:**
 
-- `/Users/spencer/workspaces/savvy-web/github-readme-private/.claude/design/`
-  - `silk-ecosystem/silk-overview.md` - Silk ecosystem architecture
-  - `org-workflows/workflow-architecture.md` - Workflow details
-  - `org-configuration/org-configuration.md` - Custom properties and labels
-  - `github-app/savvy-web-bot.md` - GitHub App permissions
+- `action.yml` — action manifest (node24, three phases)
+- `action.config.ts` — build config
+- `silk.config.schema.json` — generated JSON schema for config validation
+- `src/program.ts`, `src/layers/app.ts` — main program and layer wiring
+- `src/pre.ts`, `src/main.ts`, `src/post.ts` — phase entrypoints
 
-**External Resources:**
+**External resources:**
 
 - [GitHub REST API - Labels](https://docs.github.com/en/rest/issues/labels)
 - [GitHub REST API - Repos](https://docs.github.com/en/rest/repos/repos)
 - [GitHub GraphQL - ProjectV2](https://docs.github.com/en/graphql/reference/objects#projectv2)
 - [GitHub Custom Properties](https://docs.github.com/en/organizations/managing-organization-settings/managing-custom-properties-for-repositories-in-your-organization)
 - [Effect-TS Documentation](https://effect.website)
-- [@savvy-web/github-action-builder](https://github.com/savvy-web/github-action-builder)
 
 ---
 
-**Document Status:** Current - reflects the fully implemented compiled
-TypeScript action with config loading in main step (deferred from pre),
-structured `results` JSON output, and exported `aggregateStats`/`SyncStats`.
-All 8 implementation phases complete. Last synced with codebase on
-2026-02-09.
+**Document Status:** Current — reflects the rewrite onto `@savvy-web/github-action-effects` v2: library-supplied service layer (auth, resilient REST/GraphQL, state, outputs, reporting), flat `src/` layout, `GitHubToken` three-phase lifecycle, `action.config.ts` build config and the 1.0.0 breaking input/output contract change. Last synced with codebase on 2026-05-29.

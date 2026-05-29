@@ -49,14 +49,10 @@
 		"validate": "github-action-builder validate"
 	},
 	"dependencies": {
-		"@actions/core": "^3.0.0",
-		"@actions/github": "^9.0.0",
-		"@effect/platform": "^0.94.4",
-		"@effect/platform-node": "^0.104.1",
-		"@octokit/auth-app": "^8.2.0",
-		"@octokit/request": "^10.0.7",
-		"@octokit/rest": "^22.0.1",
-		"effect": "^3.19.16"
+		"@effect/platform": "catalog:silk",
+		"@effect/platform-node": "catalog:silk",
+		"@savvy-web/github-action-effects": "^2.0.1",
+		"effect": "catalog:silk"
 	},
 	"devDependencies": {
 		"@savvy-web/changesets": "^0.10.0",
