@@ -1,5 +1,11 @@
 # @savvy-web/pnpm-module-template
 
+## 1.0.2
+
+### Other
+
+* [`61270e0`](https://github.com/savvy-web/silk-sync-action/commit/61270e044188f8208e9f0433e26073ad1a732758) Upgrade to `@savvy-web/silk` dependency system
+
 ## 1.0.1
 
 ### Dependencies
@@ -106,6 +112,7 @@ Token provisioning, permission verification, and revocation are now managed by `
 ### Patch Changes
 
 * 1938248: ## Features
+
   * Support for @savvy-web/changesets
 
 * b949191: Update dependencies:
