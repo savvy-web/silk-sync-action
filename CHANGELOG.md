@@ -1,5 +1,11 @@
 # @savvy-web/pnpm-module-template
 
+## 1.0.3
+
+### Other
+
+* [`daf4b41`](https://github.com/savvy-web/silk-sync-action/commit/daf4b4138bdd0d5e7f6c5c9b844bb42147d92147) Upgrade to silk-release-action\@v2.
+
 ## 1.0.2
 
 ### Other
