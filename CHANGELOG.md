@@ -1,5 +1,18 @@
 # @savvy-web/pnpm-module-template
 
+## 1.0.5
+
+### Dependencies
+
+* | [`1517343`](https://github.com/savvy-web/silk-sync-action/commit/1517343414d80b4dd023d518e47a63717a5dd820) | Dependency    | Type    | Action  | From    | To |
+  | :--------------------------------------------------------------------------------------------------------- | :------------ | :------ | :------ | :------ | -- |
+  | @effect/platform                                                                                           | dependency    | updated | ^0.96.1 | ^0.96.2 |    |
+  | effect                                                                                                     | dependency    | updated | ^3.21.3 | ^3.21.4 |    |
+  | @savvy-web/github-action-effects                                                                           | dependency    | updated | ^2.1.4  | ^2.3.0  |    |
+  | @savvy-web/github-action-builder                                                                           | devDependency | updated | ^0.7.8  | ^0.8.0  |    |
+  | @savvy-web/silk                                                                                            | devDependency | updated | ^1.0.0  | ^1.3.3  |    |
+  | @savvy-web/vitest                                                                                          | devDependency | updated | ^1.5.0  | ^1.6.0  |    |
+
 ## 1.0.4
 
 ### Dependencies
