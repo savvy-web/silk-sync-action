@@ -13,9 +13,7 @@
 import { writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { JSONSchema } from "effect";
-
-// biome-ignore lint/correctness/useImportExtensions: Node 24 native TS requires .ts extension
-import { SilkConfig } from "../../src/schemas.ts";
+import { SilkConfig } from "../../src/schemas.js";
 
 const OUTPUT_PATH = resolve(import.meta.dirname, "../../silk.config.schema.json");
 
