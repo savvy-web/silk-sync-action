@@ -1,5 +1,11 @@
 # @savvy-web/pnpm-module-template
 
+## 1.0.8
+
+### Bug Fixes
+
+* [`292ee7a`](https://github.com/savvy-web/silk-sync-action/commit/292ee7aaad6d6eacc3b7f5ed21caa6179372ae12) Explicitly declare `@types/node` version.
+
 ## 1.0.7
 
 ### Dependencies
