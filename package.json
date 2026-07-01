@@ -1,6 +1,6 @@
 {
 	"name": "@savvy-web/silk-sync-action",
-	"version": "1.0.6",
+	"version": "1.0.7",
 	"private": true,
 	"description": "GitHub Action to synchronize settings for repos using the Silk Suite system",
 	"keywords": [
