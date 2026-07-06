@@ -31,7 +31,6 @@
 		"build:prod": "github-action-builder build",
 		"ci:build": "CI=\"true\" turbo run build:prod --log-order=grouped --output-logs=full",
 		"ci:test": "CI=\"true\" vitest run --coverage",
-		"ci:version": "savvy changeset version && biome format --write .",
 		"generate:schema": "node lib/scripts/generate-schema.ts && biome format --write silk.config.schema.json",
 		"lint": "biome check --max-diagnostics=none",
 		"lint:fix": "biome check --write --max-diagnostics=none",
