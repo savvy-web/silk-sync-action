@@ -6,8 +6,7 @@
 | --- | --- |
 | Latest | Yes |
 
-This project is pre-release (`0.x`). Only the latest version receives security
-fixes.
+Only the latest release receives security fixes.
 
 ## Reporting a Vulnerability
 

@@ -6,7 +6,7 @@ and instructions for development.
 ## Prerequisites
 
 - [Node.js](https://nodejs.org/) 24+
-- [pnpm](https://pnpm.io/) 10.29+
+- [pnpm](https://pnpm.io/) 11.9+
 
 ## Development Setup
 
