@@ -49,9 +49,7 @@ Build pipeline: `types:check` -> `generate:schema` -> `build:prod`
 Build entries and the optional-dependency `ignore` list (cyclonedx XML plugins,
 pulled in transitively by the library) are configured in `action.config.ts`.
 
-Output: `dist/pre.js`, `dist/main.js`, `dist/post.js` (~2.2 MB each) plus
-`dist/*.LICENSE.txt`. The build also persists a local copy under
-`.github/actions/local/` (for `act` testing); both are committed.
+Output: `dist/pre.js`, `dist/main.js`, `dist/post.js` (~780 KB each) plus `dist/package.json`. The build also persists a local copy under `.github/actions/local/` (for `act` testing); both are committed.
 
 ### Running a Single Test
 

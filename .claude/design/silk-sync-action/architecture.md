@@ -3,8 +3,8 @@ status: current
 module: silk-sync-action
 category: architecture
 created: 2026-02-09
-updated: 2026-05-29
-last-synced: 2026-05-29
+updated: 2026-07-05
+last-synced: 2026-07-05
 completeness: 95
 related: []
 dependencies: []
@@ -338,7 +338,7 @@ Declared in `REQUIRED_PERMISSIONS` (`src/pre.ts`) and enforced at provision time
 | `effect` | Schema, Layer, Effect (core Effect-TS) |
 | `@effect/platform` / `@effect/platform-node` | `FetchHttpClient`, `NodeContext`, `NodeFileSystem` for layer wiring |
 | `@savvy-web/github-action-effects` | Entrypoints, auth, REST/GraphQL clients, state, outputs, reporting (the service layer) |
-| `@savvy-web/github-action-builder` (dev) | `@vercel/ncc` bundling + `action.yml` validation |
+| `@savvy-web/github-action-builder` (dev) | rsbuild/rspack bundling + `action.yml` validation |
 
 The previous direct dependencies on `@actions/core`, `@actions/github`, `@octokit/auth-app`, `@octokit/request` and `@octokit/rest` are gone; those concerns now live behind the library.
 
@@ -426,4 +426,4 @@ Output: `dist/pre.js`, `dist/main.js`, `dist/post.js`.
 
 ---
 
-**Document Status:** Current — reflects the rewrite onto `@savvy-web/github-action-effects` v2: library-supplied service layer (auth, resilient REST/GraphQL, state, outputs, reporting), flat `src/` layout, `GitHubToken` three-phase lifecycle, `action.config.ts` build config and the 1.0.0 breaking input/output contract change. Last synced with codebase on 2026-05-29.
+**Document Status:** Current — reflects the rewrite onto `@savvy-web/github-action-effects` v2: library-supplied service layer (auth, resilient REST/GraphQL, state, outputs, reporting), flat `src/` layout, `GitHubToken` three-phase lifecycle, `action.config.ts` build config and the 1.0.0 breaking input/output contract change. Last synced with codebase on 2026-07-05.
