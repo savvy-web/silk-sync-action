@@ -54,9 +54,9 @@
 	"devDependencies": {
 		"@changesets/cli": "^3.0.0-next.8",
 		"@savvy-web/github-action-builder": "^1.1.1",
-		"@savvy-web/silk": "^2.2.2",
+		"@savvy-web/silk": "^2.2.3",
 		"@types/node": "catalog:silk",
-		"@vitest-agent/plugin": "^1.1.7"
+		"@vitest-agent/plugin": "^1.1.8"
 	},
 	"packageManager": "pnpm@11.11.0+sha512.4463f65fd80ed80d69bc1d4bf163ee94f605c7380fc318bb5b2ebe15f8cd12d49c51a4d59e951b401e764d3b6ca751cbf51bc50ed7001a6bcb4935e684c34882",
 	"engines": {
