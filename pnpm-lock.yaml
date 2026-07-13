@@ -6,17 +6,17 @@ importers:
   .:
     configDependencies:
       '@savvy-web/pnpm-plugin-silk':
-        specifier: 0.23.0
-        version: 0.23.0
+        specifier: 0.23.1
+        version: 0.23.1
 
 packages:
 
-  '@savvy-web/pnpm-plugin-silk@0.23.0':
-    resolution: {integrity: sha512-YkB5luvlXPvf2wdFHMYv+4bomRT96qiMOTwuuzN6mBVBYtcqt7krldhD0Az84+xujKFy+LliuOZwDMNG8/VR0w==}
+  '@savvy-web/pnpm-plugin-silk@0.23.1':
+    resolution: {integrity: sha512-Iv0lXkpG6NXcNu/khNeaNfpcI8KMnyOnmiB+BbwCw1t0csCZPzLf7EJ4zCuvD/yg1oyHquMXzBQHAzyGq+CnZw==}
 
 snapshots:
 
-  '@savvy-web/pnpm-plugin-silk@0.23.0': {}
+  '@savvy-web/pnpm-plugin-silk@0.23.1': {}
 
 ---
 lockfileVersion: '9.0'
@@ -43,7 +43,7 @@ catalogs:
 overrides:
   '@microsoft/api-extractor>typescript': ^6.0.3
 
-pnpmfileChecksum: sha256-mkr5h3HTwYB8amObDwI99GWQPyBYMxkoNvUiGbxaswg=
+pnpmfileChecksum: sha256-fwfFCERAC0qMRcqLx4v5UQnSN2pjVU6VoO9YO7k2jt0=
 
 importers:
 
@@ -69,8 +69,8 @@ importers:
         specifier: ^1.1.2
         version: 1.1.2(@effect/experimental@0.60.0(@effect/platform@0.96.2(effect@3.21.4))(effect@3.21.4))(@effect/workflow@0.18.2(@effect/experimental@0.60.0(@effect/platform@0.96.2(effect@3.21.4))(effect@3.21.4))(@effect/platform@0.96.2(effect@3.21.4))(@effect/rpc@0.75.1(@effect/platform@0.96.2(effect@3.21.4))(effect@3.21.4))(effect@3.21.4))(@types/node@26.1.1)(typescript@7.0.2)
       '@savvy-web/silk':
-        specifier: ^2.4.0
-        version: 2.4.0(@changesets/cli@3.0.0-next.8)(@commitlint/cli@21.2.1(@types/node@26.1.1)(conventional-commits-parser@7.1.0)(typescript@7.0.2))(@commitlint/config-conventional@21.2.0)(@types/node@26.1.1)(husky@9.1.7)(lint-staged@17.0.8)(markdownlint-cli2-formatter-codequality@0.0.7(markdownlint-cli2@0.23.0))(markdownlint-cli2@0.23.0)(turbo@2.10.4)(typescript@7.0.2)
+        specifier: ^2.4.1
+        version: 2.4.1(@changesets/cli@3.0.0-next.8)(@commitlint/cli@21.2.1(@types/node@26.1.1)(conventional-commits-parser@7.1.0)(typescript@7.0.2))(@commitlint/config-conventional@21.2.0)(@types/node@26.1.1)(husky@9.1.7)(lint-staged@17.0.8)(markdownlint-cli2-formatter-codequality@0.0.7(markdownlint-cli2@0.23.0))(markdownlint-cli2@0.23.0)(turbo@2.10.4)(typescript@7.0.2)
       '@types/node':
         specifier: catalog:silk
         version: 26.1.1
@@ -1036,11 +1036,11 @@ packages:
       '@effect/platform': ^0.96.0
       effect: ^3.21.0
 
-  '@savvy-web/silk@2.4.0':
-    resolution: {integrity: sha512-xzykrb+5tEkTOA1m2/nV8Cz0MdszHtkC5xdiWjfuiv0Fj1g1UkR7o9FyVW0CJyQGg3d7qimy2aj8XOZaJi9LwA==}
+  '@savvy-web/silk@2.4.1':
+    resolution: {integrity: sha512-wLrlUWqnGRa3mdwSKYNuwNdZQzPEjAl7NklqY+WEAccX0pbyDG573maD4vhOADJfrnZZkfVwU3xnl1NtKUposA==}
     peerDependencies:
       '@biomejs/biome': ~2.5.0
-      '@changesets/cli': ^3.0.0
+      '@changesets/cli': ^3.0.0-next.8
       '@commitlint/cli': ^21.2.1
       '@commitlint/config-conventional': ^21.2.0
       '@types/node': ^26.1.0
@@ -4569,7 +4569,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@savvy-web/silk@2.4.0(@changesets/cli@3.0.0-next.8)(@commitlint/cli@21.2.1(@types/node@26.1.1)(conventional-commits-parser@7.1.0)(typescript@7.0.2))(@commitlint/config-conventional@21.2.0)(@types/node@26.1.1)(husky@9.1.7)(lint-staged@17.0.8)(markdownlint-cli2-formatter-codequality@0.0.7(markdownlint-cli2@0.23.0))(markdownlint-cli2@0.23.0)(turbo@2.10.4)(typescript@7.0.2)':
+  '@savvy-web/silk@2.4.1(@changesets/cli@3.0.0-next.8)(@commitlint/cli@21.2.1(@types/node@26.1.1)(conventional-commits-parser@7.1.0)(typescript@7.0.2))(@commitlint/config-conventional@21.2.0)(@types/node@26.1.1)(husky@9.1.7)(lint-staged@17.0.8)(markdownlint-cli2-formatter-codequality@0.0.7(markdownlint-cli2@0.23.0))(markdownlint-cli2@0.23.0)(turbo@2.10.4)(typescript@7.0.2)':
     dependencies:
       '@changesets/cli': 3.0.0-next.8
       '@commitlint/cli': 21.2.1(@types/node@26.1.1)(conventional-commits-parser@7.1.0)(typescript@7.0.2)
