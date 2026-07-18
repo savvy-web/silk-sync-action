@@ -22,7 +22,7 @@ const run = (existing: unknown[], opts: { dryRun: boolean; removeCustom: boolean
 	});
 	return syncLabels("o", "r", desired, opts.dryRun, opts.removeCustom).pipe(
 		Effect.provide(layer),
-		Effect.provide(Logger.replace(Logger.defaultLogger, Logger.none)),
+		Effect.provide(Logger.layer([])),
 		Effect.runPromise,
 	);
 };
@@ -61,7 +61,7 @@ describe("syncLabels", () => {
 		});
 		const { results, errors } = await syncLabels("o", "r", desired, false, false).pipe(
 			Effect.provide(layer),
-			Effect.provide(Logger.replace(Logger.defaultLogger, Logger.none)),
+			Effect.provide(Logger.layer([])),
 			Effect.runPromise,
 		);
 		// Both creates fail: no "created" results, two recorded errors.

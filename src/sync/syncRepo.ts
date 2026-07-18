@@ -34,7 +34,7 @@ export const syncRepo = (
 		const errors: Array<SyncErrorRecord> = [];
 
 		const repoData = yield* getRepo(repo.owner, repo.name).pipe(
-			Effect.catchAll((e) => {
+			Effect.catch((e) => {
 				errors.push({ target: "repo", operation: "get", error: e.reason });
 				return Effect.succeed(null as GitHubRepo | null);
 			}),

@@ -10,16 +10,23 @@ labels, and GitHub Projects V2 linking across a GitHub organization. It reads a
 centralized JSON config file (`silk.config.json`) and applies it to discovered
 repositories.
 
-Built with **Effect-TS** on top of **`@savvy-web/github-action-effects`** (the
-library providing `Action`, `GitHubClient`, `GitHubGraphQL`, `GitHubToken`,
-`ActionState`, `ActionOutputs`, `ConfigLoader`, etc.) and bundled with
-**`@savvy-web/github-action-builder`**. Runs as a three-phase `node24` action:
-`pre` (App token provisioning) -> `main` (sync) -> `post` (token revocation).
+Built with **Effect v4** (`effect@4.0.0-beta.98` via `catalog:effect`) on top of
+**`@savvy-web/github-action-effects@3`** (the library providing `Action`,
+`GitHubClient`, `GitHubGraphQL`, `GitHubToken`, `ActionState`, `ActionOutputs`,
+`ConfigLoader`, etc.) and bundled with **`@savvy-web/github-action-builder`**.
+Runs as a three-phase `node24` action: `pre` (App token provisioning) ->
+`main` (sync) -> `post` (token revocation).
 
-There are no `@actions/*` or `@octokit/*` runtime dependencies — all GitHub
-Actions and GitHub API integration goes through `@savvy-web/github-action-effects`.
+Runtime dependencies are just `effect`, `@effect/platform-node`, and the
+library. In v4, `@effect/platform` dissolved into core `effect` (e.g.
+`FetchHttpClient` now imports from `effect/unstable/http`), so it is no longer a
+dependency. There are no `@actions/*` or `@octokit/*` runtime dependencies — all
+GitHub Actions and GitHub API integration goes through
+`@savvy-web/github-action-effects`.
 
 **For detailed architecture:** `@.claude/design/silk-sync-action/architecture.md` — Load when modifying sync workflow logic, adding sync capabilities, debugging GitHub API interactions, or understanding the library service layer.
+
+**Effect v4 API authority:** `.repos/effect-smol` — vendored read-only Effect source pinned to `effect@4.0.0-beta.98` (matching `catalog:effect`) with v3→v4 migration notes. Consult when unsure what v4 exports or how an API changed.
 
 ## Commands
 
@@ -49,7 +56,7 @@ Build pipeline: `types:check` -> `generate:schema` -> `build:prod`
 Build entries and the optional-dependency `ignore` list (cyclonedx XML plugins,
 pulled in transitively by the library) are configured in `action.config.ts`.
 
-Output: `dist/pre.js`, `dist/main.js`, `dist/post.js` (~780 KB each) plus `dist/package.json`. The build also persists a local copy under `.github/actions/local/` (for `act` testing); both are committed.
+Output: `dist/pre.js`, `dist/main.js`, `dist/post.js` (~487 kB main, ~468 kB pre/post after the v4 slimming) plus `dist/package.json`. The build also persists a local copy under `.github/actions/local/` (for `act` testing); both are committed.
 
 ### Running a Single Test
 
@@ -98,7 +105,7 @@ Each push is guarded: if the remote `v<major>` tag or `dev` already points at it
 - `src/program.ts` -- Main Effect program (discover -> sync -> report -> outputs)
 - `src/inputs.ts` -- Input parsing via `Config`/`ActionInput` -> `SilkInputs`
 - `src/schemas.ts` -- Effect Schema definitions (SilkConfig, domain types, ResultsOutput)
-- `src/errors.ts` -- `Schema.TaggedError` types (DiscoveryError, InvalidInputError)
+- `src/errors.ts` -- `Schema.TaggedErrorClass` types (DiscoveryError, InvalidInputError)
 - `src/state.ts` -- `ActionState` structs (StartTimeState) + state keys
 - `src/layers/app.ts` -- PreLive / MainLive / PostLive layer composition
 - `src/github/reads.ts` -- Typed `GitHubClient` REST wrappers (stable operation names)
@@ -114,8 +121,9 @@ Each push is guarded: if the remote `v<major>` tag or `dev` already points at it
   `GitHubGraphQL` (Projects v2), `GitHubToken` (provision/client/dispose across phases),
   `ConfigLoader.loadJson`, `ActionOutputs`, `ActionState`, all from
   `@savvy-web/github-action-effects`
-- **Effect-TS services**: `Context.Tag` for DI, `Layer.mergeAll`/`Layer.provide` for composition
-- **Typed errors**: `Schema.TaggedError` with custom `get message()` getters
+- **Effect-TS services**: class-based `Context.Service` for DI (with companion
+  `*Shape` interfaces), `Layer.mergeAll`/`Layer.provide` for composition
+- **Typed errors**: `Schema.TaggedErrorClass` with custom `get message()` getters
 - **Entry points**: `Action.run(program, { layer })` (handles runtime, error formatting, exit codes)
 - **State passing**: `ActionState.save`/`getOptional` with Schema structs (not `core.saveState`)
 - **Per-repo error accumulation**: `ErrorAccumulator.forEachAccumulate`; repo failures are

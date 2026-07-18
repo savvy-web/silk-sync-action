@@ -1,7 +1,7 @@
 import { Schema } from "effect";
 import { NonEmptyString } from "./schemas.js";
 
-export class InvalidInputError extends Schema.TaggedError<InvalidInputError>()("InvalidInputError", {
+export class InvalidInputError extends Schema.TaggedErrorClass<InvalidInputError>()("InvalidInputError", {
 	field: NonEmptyString,
 	value: Schema.Unknown,
 	reason: NonEmptyString,
@@ -11,7 +11,7 @@ export class InvalidInputError extends Schema.TaggedError<InvalidInputError>()("
 	}
 }
 
-export class DiscoveryError extends Schema.TaggedError<DiscoveryError>()("DiscoveryError", {
+export class DiscoveryError extends Schema.TaggedErrorClass<DiscoveryError>()("DiscoveryError", {
 	reason: NonEmptyString,
 }) {
 	get message(): string {

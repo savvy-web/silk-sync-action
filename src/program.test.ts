@@ -33,11 +33,11 @@ describe("program", () => {
 			}),
 			GitHubGraphQLTest.empty().layer,
 		);
-		const cfgProvider = ConfigProvider.fromMap(new Map([["repos", "a"]]));
+		const cfgProvider = ConfigProvider.fromUnknown({ repos: "a" });
 		await program.pipe(
-			Effect.withConfigProvider(cfgProvider),
+			Effect.provide(ConfigProvider.layer(cfgProvider)),
 			Effect.provide(layer),
-			Effect.provide(Logger.replace(Logger.defaultLogger, Logger.none)),
+			Effect.provide(Logger.layer([])),
 			Effect.runPromise,
 		);
 		expect(outputValue(outputs, "success")).toBe("true");
@@ -60,11 +60,11 @@ describe("program", () => {
 			}),
 			GitHubGraphQLTest.empty().layer,
 		);
-		const cfgProvider = ConfigProvider.fromMap(new Map([["custom-properties", "workflow=standard"]]));
+		const cfgProvider = ConfigProvider.fromUnknown({ "custom-properties": "workflow=standard" });
 		await program.pipe(
-			Effect.withConfigProvider(cfgProvider),
+			Effect.provide(ConfigProvider.layer(cfgProvider)),
 			Effect.provide(layer),
-			Effect.provide(Logger.replace(Logger.defaultLogger, Logger.none)),
+			Effect.provide(Logger.layer([])),
 			Effect.runPromise,
 		);
 		expect(outputs.failed.length).toBeGreaterThanOrEqual(1);
@@ -113,11 +113,11 @@ describe("program", () => {
 			}),
 			gql.layer,
 		);
-		const cfgProvider = ConfigProvider.fromMap(new Map([["custom-properties", "project-tracking=true"]]));
+		const cfgProvider = ConfigProvider.fromUnknown({ "custom-properties": "project-tracking=true" });
 		await program.pipe(
-			Effect.withConfigProvider(cfgProvider),
+			Effect.provide(ConfigProvider.layer(cfgProvider)),
 			Effect.provide(layer),
-			Effect.provide(Logger.replace(Logger.defaultLogger, Logger.none)),
+			Effect.provide(Logger.layer([])),
 			Effect.runPromise,
 		);
 		expect(outputValue(outputs, "success")).toBe("true");

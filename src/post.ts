@@ -12,10 +12,10 @@ export const post = Effect.gen(function* () {
 	}
 	yield* Effect.logInfo("Revoking installation token...");
 	yield* GitHubToken.dispose().pipe(
-		Effect.catchAll((e) => Effect.logWarning(`Token revocation failed: ${e instanceof Error ? e.message : String(e)}`)),
+		Effect.catch((e) => Effect.logWarning(`Token revocation failed: ${e instanceof Error ? e.message : String(e)}`)),
 	);
 }).pipe(
-	Effect.catchAllDefect((d) => Effect.logWarning(`Post-action warning: ${d instanceof Error ? d.message : String(d)}`)),
+	Effect.catchDefect((d) => Effect.logWarning(`Post-action warning: ${d instanceof Error ? d.message : String(d)}`)),
 );
 
 /* v8 ignore next 3 */

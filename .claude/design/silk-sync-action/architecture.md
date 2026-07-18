@@ -3,8 +3,8 @@ status: current
 module: silk-sync-action
 category: architecture
 created: 2026-02-09
-updated: 2026-07-05
-last-synced: 2026-07-05
+updated: 2026-07-17
+last-synced: 2026-07-17
 completeness: 95
 related: []
 dependencies: []
@@ -14,7 +14,7 @@ implementation-plans:
 
 # Silk Sync Action - Architecture
 
-GitHub Action that synchronizes repository settings, labels and GitHub Projects V2 linking across a GitHub organization (or personal account) using a centralized configuration file. Built on Effect-TS and `@savvy-web/github-action-effects` v2, which supplies the entire service layer (auth, resilient REST/GraphQL clients, state, outputs and reporting). This action contributes only the Silk-specific domain logic on top.
+GitHub Action that synchronizes repository settings, labels and GitHub Projects V2 linking across a GitHub organization (or personal account) using a centralized configuration file. Built on Effect **v4** (`effect@4.0.0-beta.98`, resolved via `catalog:effect`) and `@savvy-web/github-action-effects` v3, which supplies the entire service layer (auth, resilient REST/GraphQL clients, state, outputs and reporting). This action contributes only the Silk-specific domain logic on top.
 
 ## Table of Contents
 
@@ -66,7 +66,7 @@ Both modes can be used simultaneously; results are merged and deduplicated by fu
 
 ## Current State
 
-The action is a compiled TypeScript action built on `@savvy-web/github-action-effects` v2 and `@savvy-web/github-action-builder`. It runs as a three-phase `node24` action (`pre` -> `main` -> `post`) whose lifecycle is driven by the library's `Action.run` entrypoint and `GitHubToken` token lifecycle.
+The action is a compiled TypeScript action built on Effect **v4** (`effect@4.0.0-beta.98`), `@savvy-web/github-action-effects` v3 and `@savvy-web/github-action-builder`. It runs as a three-phase `node24` action (`pre` -> `main` -> `post`) whose lifecycle is driven by the library's `Action.run` entrypoint and `GitHubToken` token lifecycle.
 
 **Source is a flat `src/` layout** (no `src/lib/` tree). Key files:
 
@@ -74,7 +74,7 @@ The action is a compiled TypeScript action built on `@savvy-web/github-action-ef
 - `src/program.ts` — the main Effect program (the orchestration body of `main`)
 - `src/layers/app.ts` — `PreLive` / `MainLive` / `PostLive` layer compositions
 - `src/schemas.ts` — domain schemas (`SilkConfig`, `DiscoveredRepo`, results) and `ResultsOutput`
-- `src/errors.ts` — domain `TaggedError`s (`DiscoveryError`, `InvalidInputError`)
+- `src/errors.ts` — domain `TaggedErrorClass`es (`DiscoveryError`, `InvalidInputError`)
 - `src/state.ts` — `StartTimeState` Schema class for cross-phase state
 - `src/inputs.ts` — input parsing into `SilkInputs`
 - `src/github/reads.ts` — typed REST wrappers over the library `GitHubClient`
@@ -93,7 +93,7 @@ The action is a compiled TypeScript action built on `@savvy-web/github-action-ef
 
 ## Rationale
 
-### Decision 1: Build on `@savvy-web/github-action-effects` v2
+### Decision 1: Build on Effect v4 + `@savvy-web/github-action-effects` v3
 
 **Context:** The previous implementation hand-rolled everything against `@actions/*` and `@octokit/*`: custom `Context.Tag` REST/GraphQL services, App auth, rate-limit throttling, `core.saveState` state passing and `NodeRuntime.runMain` entrypoints. That surface was large, error-prone and duplicated across Silk actions.
 
@@ -104,7 +104,7 @@ The action is a compiled TypeScript action built on `@savvy-web/github-action-ef
 - The library owns resilience (429 + 5xx retry/backoff inside `GitHubClient`), so this action no longer ships a rate-limit module or inter-repo/inter-item sleeps.
 - App auth becomes a three-call lifecycle (`provision` / `client()` / `dispose`) instead of hand-managed Octokit auth and token revocation.
 - State is Schema-typed (`ActionState.save` / `getOptional`) instead of stringly-typed `core.saveState`.
-- Runtime dependencies shrink to `effect`, `@effect/platform(-node)` and the library.
+- Runtime dependencies are just `effect`, `@effect/platform-node` and the library. On the Effect v4 upgrade the separate `@effect/platform` package was dropped — it dissolved into core `effect` in v4 (e.g. `FetchHttpClient` now lives at `effect/unstable/http`), so only the Node-specific `@effect/platform-node` remains.
 
 ### Decision 2: Dual discovery (org + personal)
 
@@ -112,7 +112,7 @@ Support both org discovery (via custom properties) and explicit repo lists. Org 
 
 ### Decision 3: User-provided config with a generated JSON schema
 
-Label definitions and repository settings come from a user-provided JSON config file. The published `silk.config.schema.json` is generated from the `SilkConfig` Effect Schema at build time (`lib/scripts/generate-schema.ts`, `JSONSchema.make(SilkConfig)`), so IDE autocompletion and runtime validation share one source of truth. `SilkConfig` carries an optional `$schema` field so users can reference the schema in their config without a validation error.
+Label definitions and repository settings come from a user-provided JSON config file. The published `silk.config.schema.json` is generated from the `SilkConfig` Effect Schema at build time (`lib/scripts/generate-schema.ts`), so IDE autocompletion and runtime validation share one source of truth. Under Effect v4 the generator is `JsonSchema.toDocumentDraft07(Schema.toJsonSchemaDocument(SilkConfig))`: `toJsonSchemaDocument` emits a 2020-12 `Document`, and `toDocumentDraft07` rewrites it into a draft-07 doc with a `definitions` map plus a root `$ref` (the script then splices in `$schema`/`title`/`description` metadata). Note the v4 emitter's shape: optional/nullable fields render as `anyOf: [T, null]` and Schema checks (min/max/pattern) render as `allOf` entries. `SilkConfig` carries an optional `$schema` field so users can reference the schema in their config without a validation error.
 
 ### Decision 4: Three-phase execution via the `GitHubToken` lifecycle
 
@@ -154,8 +154,8 @@ Each entrypoint is a thin shell: `pre.ts` and `post.ts` guard on `process.env.GI
 
 This is the load-bearing wiring between the action and the library:
 
-- **`PreLive` / `PostLive`:** `GitHubAppLive` (provided `OctokitAuthAppLive` + `FetchHttpClient.layer`) merged with `NodeFileSystem.layer`. Supplies App auth (for token provision/dispose) plus a filesystem for `ActionState`.
-- **`MainLive`:** a `GitHubClient` built from the persisted installation token via `GitHubToken.client()` (provided `ActionStateLive`, `Layer.orDie`), a `GitHubGraphQL` layered on that client, and `ConfigLoaderLive`. This is the only place the persisted token is turned back into an authenticated client.
+- **`PreLive` / `PostLive`:** `GitHubAppLive` (provided `OctokitAuthAppLive` + `FetchHttpClient.layer`, now imported from `effect/unstable/http`) merged with `NodeFileSystem.layer` (still from `@effect/platform-node`). Supplies App auth (for token provision/dispose) plus a filesystem for `ActionState`.
+- **`MainLive`:** a `GitHubClient` built from the persisted installation token via `GitHubToken.client()` (provided `ActionStateLive`, `Layer.orDie`), a `GitHubGraphQL` layered on that client, and `ConfigLoaderLive`. Both `ActionStateLive` and `ConfigLoaderLive` are provided `NodeServices.layer` (the Effect v4 replacement for `NodeContext.layer`) for their filesystem/platform needs. This is the only place the persisted token is turned back into an authenticated client.
 
 ### Action contract (`action.yml`)
 
@@ -199,7 +199,7 @@ src/
 +-- layers/
 |   +-- app.ts              # PreLive / MainLive / PostLive layer compositions
 +-- schemas.ts              # SilkConfig, domain types, ResultsOutput
-+-- errors.ts               # DiscoveryError, InvalidInputError (TaggedError)
++-- errors.ts               # DiscoveryError, InvalidInputError (TaggedErrorClass)
 +-- state.ts                # StartTimeState (ActionState Schema class)
 +-- inputs.ts               # parseInputs -> SilkInputs
 +-- github/
@@ -233,7 +233,7 @@ Each source file has a co-located `*.test.ts`. The boundaries worth knowing:
 
 ## Schemas and Types
 
-Domain schemas live in `src/schemas.ts`; domain errors in `src/errors.ts`. Types use `Schema.Struct` with `typeof X.Type` inference; errors use `Schema.TaggedError` with a custom `get message()`.
+Domain schemas live in `src/schemas.ts`; domain errors in `src/errors.ts`. Types use `Schema.Struct` with `typeof X.Type` inference; errors use `Schema.TaggedErrorClass` with a custom `get message()`. The schemas follow Effect v4 idioms: refinements are attached via `.check(...)` with predicate combinators (`Schema.isMinLength`, `Schema.isMaxLength`, `Schema.isPattern`, `Schema.isGreaterThan`) rather than the v3 `.pipe(Schema.minLength/...)` filters, and closed enums use `Schema.Literals([...])` (array form) instead of the variadic `Schema.Literal(a, b, c)`.
 
 The cardinal config type is `SilkConfig` (`{ $schema?, labels: LabelDefinition[], settings: RepositorySettings }`). It is the contract for both the user config file and the generated JSON schema, so its shape must stay stable. `RepositorySettings` enumerates the syncable keys (mirrored by `SYNCABLE_KEYS` in `src/sync/settings.ts`).
 
@@ -247,7 +247,7 @@ Domain errors are only `InvalidInputError` (fatal, raised during input parsing) 
 
 ## Service Layer
 
-The service layer is entirely supplied by `@savvy-web/github-action-effects`. This action defines no `Context.Tag` services of its own; it composes library layers in `src/layers/app.ts` and consumes the library tags directly.
+The service layer is entirely supplied by `@savvy-web/github-action-effects`. This action defines no services of its own; it composes library layers in `src/layers/app.ts` and consumes the library services directly. Under Effect v4 those library services are class-based `Context.Service` definitions (each paired with a companion `*Shape` interface), not the v3 `Context.Tag` pattern — but this action only references them, so the distinction is transparent at the call sites below.
 
 - **`Action.run`** — entrypoint runner for each phase (replaces `NodeRuntime.runMain`).
 - **`GitHubToken`** — App-token lifecycle: `provision({ permissions })` in `pre`, `client()` (a `Layer`) in `MainLive`, `dispose()` in `post`. Replaces hand-rolled `@octokit/auth-app` auth and `DELETE /installation/token` revocation.
@@ -335,9 +335,9 @@ Declared in `REQUIRED_PERMISSIONS` (`src/pre.ts`) and enforced at provision time
 
 | Package | Purpose |
 | :------ | :------ |
-| `effect` | Schema, Layer, Effect (core Effect-TS) |
-| `@effect/platform` / `@effect/platform-node` | `FetchHttpClient`, `NodeContext`, `NodeFileSystem` for layer wiring |
-| `@savvy-web/github-action-effects` | Entrypoints, auth, REST/GraphQL clients, state, outputs, reporting (the service layer) |
+| `effect` (v4, `4.0.0-beta.98` via `catalog:effect`) | Schema, Layer, Effect (core Effect-TS); also `FetchHttpClient` (`effect/unstable/http`) and `JsonSchema` — all folded into core in v4 |
+| `@effect/platform-node` | `NodeServices` and `NodeFileSystem` for layer wiring (the standalone `@effect/platform` package was dropped in v4) |
+| `@savvy-web/github-action-effects` (v3) | Entrypoints, auth, REST/GraphQL clients, state, outputs, reporting (the service layer) |
 | `@savvy-web/github-action-builder` (dev) | rsbuild/rspack bundling + `action.yml` validation |
 
 The previous direct dependencies on `@actions/core`, `@actions/github`, `@octokit/auth-app`, `@octokit/request` and `@octokit/rest` are gone; those concerns now live behind the library.
@@ -372,7 +372,7 @@ types:check -> generate:schema -> build:prod
 ```
 
 - **`types:check`** — `tsgo --noEmit`.
-- **`generate:schema`** — runs `lib/scripts/generate-schema.ts` (`JSONSchema.make(SilkConfig)` from `src/schemas.ts`) to produce `silk.config.schema.json`, then `biome format --write`.
+- **`generate:schema`** — runs `lib/scripts/generate-schema.ts` (`JsonSchema.toDocumentDraft07(Schema.toJsonSchemaDocument(SilkConfig))` from `src/schemas.ts`) to produce a draft-07 `silk.config.schema.json`, then `biome format --write`.
 - **`build:prod`** — `github-action-builder build`, driven by `action.config.ts`.
 
 ### `action.config.ts`
@@ -426,4 +426,4 @@ Output: `dist/pre.js`, `dist/main.js`, `dist/post.js`.
 
 ---
 
-**Document Status:** Current — reflects the rewrite onto `@savvy-web/github-action-effects` v2: library-supplied service layer (auth, resilient REST/GraphQL, state, outputs, reporting), flat `src/` layout, `GitHubToken` three-phase lifecycle, `action.config.ts` build config and the 1.0.0 breaking input/output contract change. Last synced with codebase on 2026-07-05.
+**Document Status:** Current — reflects the Effect v3 → v4 migration onto `effect@4.0.0-beta.98` and `@savvy-web/github-action-effects` v3: the standalone `@effect/platform` package dropped (`FetchHttpClient` now from `effect/unstable/http`, `NodeServices.layer` replacing `NodeContext.layer`), class-based `Context.Service` library services, `Schema.TaggedErrorClass` errors, v4 `.check(...)` / `Schema.Literals([...])` schema idioms, and draft-07 JSON-schema generation via `JsonSchema.toDocumentDraft07(Schema.toJsonSchemaDocument(SilkConfig))`. Still a library-supplied service layer (auth, resilient REST/GraphQL, state, outputs, reporting), flat `src/` layout, `GitHubToken` three-phase lifecycle and `action.config.ts` build config. Last synced with codebase on 2026-07-17.

@@ -27,7 +27,7 @@ export const discoverByExplicitList = (
 							customProperties: {},
 						}) satisfies DiscoveredRepo,
 				),
-				Effect.catchAll((e) => {
+				Effect.catch((e) => {
 					errors.push(`${owner}/${repo} (${e.reason})`);
 					return Effect.succeed(null);
 				}),

@@ -12,20 +12,24 @@
 
 import { writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { JSONSchema } from "effect";
+import { JsonSchema, Schema } from "effect";
 import { SilkConfig } from "../../src/schemas.js";
 
 const OUTPUT_PATH = resolve(import.meta.dirname, "../../silk.config.schema.json");
 
 async function generate(): Promise<void> {
-	const jsonSchema = JSONSchema.make(SilkConfig);
+	// v4 emits a `Document` ({ dialect, schema, definitions }) on the 2020-12
+	// dialect; `toDocumentDraft07` rewrites `#/$defs/...` refs to
+	// `#/definitions/...` for the draft-07 output this action publishes.
+	const { schema, definitions } = JsonSchema.toDocumentDraft07(Schema.toJsonSchemaDocument(SilkConfig));
 
 	const schemaWithMeta = {
-		...jsonSchema,
 		$schema: "http://json-schema.org/draft-07/schema#",
 		title: "Silk Sync Configuration",
 		description:
 			"Configuration for the silk-sync workflow that standardizes repository labels and settings across the organization.",
+		...schema,
+		...(Object.keys(definitions).length > 0 ? { definitions } : {}),
 	};
 
 	await writeFile(OUTPUT_PATH, `${JSON.stringify(schemaWithMeta, null, "\t")}\n`, "utf-8");

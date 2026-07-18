@@ -14,7 +14,7 @@ const layerWith = (rows: unknown[]) =>
 const run = (rows: unknown[], filters: { key: string; value: string }[]) =>
 	discoverByCustomProperties("acme", filters).pipe(
 		Effect.provide(layerWith(rows)),
-		Effect.provide(Logger.replace(Logger.defaultLogger, Logger.none)),
+		Effect.provide(Logger.layer([])),
 		Effect.runPromise,
 	);
 

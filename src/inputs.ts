@@ -1,5 +1,4 @@
 import { ActionInput } from "@savvy-web/github-action-effects";
-import type { ConfigError } from "effect";
 import { Config, Effect } from "effect";
 import { InvalidInputError } from "./errors.js";
 import type { CustomProperty } from "./schemas.js";
@@ -60,38 +59,36 @@ const parseCustomProperties = (
 		return out;
 	});
 
-export const parseInputs: Effect.Effect<SilkInputs, InvalidInputError | ConfigError.ConfigError> = Effect.gen(
-	function* () {
-		const configFile = yield* Config.string("config-file").pipe(Config.withDefault(".github/silk.config.json"));
-		const rawProps = yield* ActionInput.multiline("custom-properties").pipe(Config.withDefault([]));
-		const customProperties = yield* parseCustomProperties(rawProps);
-		const repos = stripComments(yield* ActionInput.multiline("repos").pipe(Config.withDefault([])));
+export const parseInputs: Effect.Effect<SilkInputs, InvalidInputError | Config.ConfigError> = Effect.gen(function* () {
+	const configFile = yield* Config.string("config-file").pipe(Config.withDefault(".github/silk.config.json"));
+	const rawProps = yield* ActionInput.multiline("custom-properties").pipe(Config.withDefault([]));
+	const customProperties = yield* parseCustomProperties(rawProps);
+	const repos = stripComments(yield* ActionInput.multiline("repos").pipe(Config.withDefault([])));
 
-		if (customProperties.length === 0 && repos.length === 0) {
-			return yield* Effect.fail(
-				new InvalidInputError({
-					field: "repos / custom-properties",
-					value: undefined,
-					reason: "At least one discovery method must be configured: provide 'repos' and/or 'custom-properties'",
-				}),
-			);
-		}
+	if (customProperties.length === 0 && repos.length === 0) {
+		return yield* Effect.fail(
+			new InvalidInputError({
+				field: "repos / custom-properties",
+				value: undefined,
+				reason: "At least one discovery method must be configured: provide 'repos' and/or 'custom-properties'",
+			}),
+		);
+	}
 
-		const dryRun = yield* ActionInput.boolean("dry-run").pipe(Config.withDefault(false));
-		const removeCustomLabels = yield* ActionInput.boolean("remove-custom-labels").pipe(Config.withDefault(false));
-		const syncSettings = yield* ActionInput.boolean("sync-settings").pipe(Config.withDefault(true));
-		const syncProjects = yield* ActionInput.boolean("sync-projects").pipe(Config.withDefault(true));
-		const skipBackfill = yield* ActionInput.boolean("skip-backfill").pipe(Config.withDefault(false));
+	const dryRun = yield* ActionInput.boolean("dry-run").pipe(Config.withDefault(false));
+	const removeCustomLabels = yield* ActionInput.boolean("remove-custom-labels").pipe(Config.withDefault(false));
+	const syncSettings = yield* ActionInput.boolean("sync-settings").pipe(Config.withDefault(true));
+	const syncProjects = yield* ActionInput.boolean("sync-projects").pipe(Config.withDefault(true));
+	const skipBackfill = yield* ActionInput.boolean("skip-backfill").pipe(Config.withDefault(false));
 
-		return {
-			configFile,
-			customProperties,
-			repos: [...repos],
-			dryRun,
-			removeCustomLabels,
-			syncSettings,
-			syncProjects,
-			skipBackfill,
-		};
-	},
-);
+	return {
+		configFile,
+		customProperties,
+		repos: [...repos],
+		dryRun,
+		removeCustomLabels,
+		syncSettings,
+		syncProjects,
+		skipBackfill,
+	};
+});

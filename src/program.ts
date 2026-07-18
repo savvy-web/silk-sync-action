@@ -54,7 +54,7 @@ export const program = Effect.gen(function* () {
 
 	if (stats.failed > 0) yield* Effect.logWarning(`${stats.failed}/${stats.total} repos had errors`);
 }).pipe(
-	Effect.catchAll((error) =>
+	Effect.catch((error) =>
 		Effect.flatMap(ActionOutputs, (outputs) =>
 			outputs.setFailed(`Sync failed: ${error instanceof Error ? error.message : String(error)}`),
 		),
