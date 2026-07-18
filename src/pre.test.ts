@@ -27,16 +27,14 @@ describe("pre", () => {
 			ActionStateTest.layer(state),
 			GitHubAppTest.layer(app),
 		);
-		const cfg = ConfigProvider.fromMap(
-			new Map([
-				["app-client-id", "cid"],
-				["app-private-key", "pk"],
-			]),
-		);
+		const cfg = ConfigProvider.fromUnknown({
+			"app-client-id": "cid",
+			"app-private-key": "pk",
+		});
 		await pre.pipe(
-			Effect.withConfigProvider(cfg),
+			Effect.provide(ConfigProvider.layer(cfg)),
 			Effect.provide(layer),
-			Effect.provide(Logger.replace(Logger.defaultLogger, Logger.none)),
+			Effect.provide(Logger.layer([])),
 			Effect.runPromise,
 		);
 		expect(state.entries.has("startTime")).toBe(true);

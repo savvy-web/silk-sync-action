@@ -29,7 +29,7 @@ const run = (opts: { customProperties: { key: string; value: string }[]; repos: 
 	});
 	return discoverRepos("acme", opts).pipe(
 		Effect.provide(layer),
-		Effect.provide(Logger.replace(Logger.defaultLogger, Logger.none)),
+		Effect.provide(Logger.layer([])),
 		Effect.runPromiseExit,
 	);
 };

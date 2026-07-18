@@ -8,12 +8,12 @@ describe("post", () => {
 		const state = ActionStateTest.empty();
 		const app = GitHubAppTest.empty();
 		const layer = Layer.mergeAll(ActionStateTest.layer(state), GitHubAppTest.layer(app));
-		const cfg = ConfigProvider.fromMap(new Map());
+		const cfg = ConfigProvider.fromUnknown({});
 		await expect(
 			post.pipe(
-				Effect.withConfigProvider(cfg),
+				Effect.provide(ConfigProvider.layer(cfg)),
 				Effect.provide(layer),
-				Effect.provide(Logger.replace(Logger.defaultLogger, Logger.none)),
+				Effect.provide(Logger.layer([])),
 				Effect.runPromise,
 			),
 		).resolves.toBeUndefined();
@@ -24,12 +24,12 @@ describe("post", () => {
 		state.entries.set("startTime", JSON.stringify({ startedAt: 1000 }));
 		const app = GitHubAppTest.empty();
 		const layer = Layer.mergeAll(ActionStateTest.layer(state), GitHubAppTest.layer(app));
-		const cfg = ConfigProvider.fromMap(new Map());
+		const cfg = ConfigProvider.fromUnknown({});
 		await expect(
 			post.pipe(
-				Effect.withConfigProvider(cfg),
+				Effect.provide(ConfigProvider.layer(cfg)),
 				Effect.provide(layer),
-				Effect.provide(Logger.replace(Logger.defaultLogger, Logger.none)),
+				Effect.provide(Logger.layer([])),
 				Effect.runPromise,
 			),
 		).resolves.toBeUndefined();

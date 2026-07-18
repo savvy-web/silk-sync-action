@@ -1,5 +1,4 @@
-import { FetchHttpClient } from "@effect/platform";
-import { NodeContext, NodeFileSystem } from "@effect/platform-node";
+import { NodeFileSystem, NodeServices } from "@effect/platform-node";
 import {
 	ActionStateLive,
 	ConfigLoaderLive,
@@ -9,6 +8,7 @@ import {
 	OctokitAuthAppLive,
 } from "@savvy-web/github-action-effects";
 import { Layer } from "effect";
+import { FetchHttpClient } from "effect/unstable/http";
 
 /** pre/post: GitHubApp (for token provision/dispose) + filesystem for ActionState. */
 export const PreLive = Layer.mergeAll(
@@ -18,9 +18,9 @@ export const PreLive = Layer.mergeAll(
 export const PostLive = PreLive;
 
 /** main: GitHubClient (built from the persisted installation token) + GraphQL + ConfigLoader. */
-const actionState = ActionStateLive.pipe(Layer.provide(NodeContext.layer));
+const actionState = ActionStateLive.pipe(Layer.provide(NodeServices.layer));
 const githubClient = GitHubToken.client().pipe(Layer.provide(actionState), Layer.orDie);
 const githubGraphql = GitHubGraphQLLive.pipe(Layer.provide(githubClient));
-const configLoader = ConfigLoaderLive.pipe(Layer.provide(NodeContext.layer));
+const configLoader = ConfigLoaderLive.pipe(Layer.provide(NodeServices.layer));
 
 export const MainLive = Layer.mergeAll(githubClient, githubGraphql, configLoader);

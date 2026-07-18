@@ -20,7 +20,7 @@ describe("resolveProjects", () => {
 		});
 		const cache = await resolveProjects("acme", [7]).pipe(
 			Effect.provide(gql.layer),
-			Effect.provide(Logger.replace(Logger.defaultLogger, Logger.none)),
+			Effect.provide(Logger.layer([])),
 			Effect.runPromise,
 		);
 		expect(cache.get(7)).toEqual({
@@ -42,7 +42,7 @@ describe("syncProject", () => {
 
 		const result = await syncProject("acme", "r", "REPO_NODE", 7, cache, false, false).pipe(
 			Effect.provide(layer),
-			Effect.provide(Logger.replace(Logger.defaultLogger, Logger.none)),
+			Effect.provide(Logger.layer([])),
 			Effect.runPromise,
 		);
 		expect(result.linkStatus).toBe("linked");
@@ -54,7 +54,7 @@ describe("syncProject", () => {
 		const gql = GitHubGraphQLTest.empty();
 		const result = await syncProject("acme", "r", "REPO_NODE", 99, new Map(), false, false).pipe(
 			Effect.provide(Layer.merge(gql.layer, baseRest([]))),
-			Effect.provide(Logger.replace(Logger.defaultLogger, Logger.none)),
+			Effect.provide(Logger.layer([])),
 			Effect.runPromise,
 		);
 		expect(result.linkStatus).toBe("skipped");
@@ -74,7 +74,7 @@ describe("syncProject", () => {
 		);
 		const result = await syncProject("acme", "r", "REPO_NODE", 7, cache, true, false).pipe(
 			Effect.provide(layer),
-			Effect.provide(Logger.replace(Logger.defaultLogger, Logger.none)),
+			Effect.provide(Logger.layer([])),
 			Effect.runPromise,
 		);
 		expect(result.linkStatus).toBe("dry-run");
@@ -90,7 +90,7 @@ describe("syncProject", () => {
 		const layer = Layer.merge(gql.layer, baseRest([{ id: 1, node_id: "I1", number: 1, title: "a" }]));
 		const result = await syncProject("acme", "r", "REPO_NODE", 7, cache, false, false).pipe(
 			Effect.provide(layer),
-			Effect.provide(Logger.replace(Logger.defaultLogger, Logger.none)),
+			Effect.provide(Logger.layer([])),
 			Effect.runPromise,
 		);
 		expect(result.linkStatus).toBe("error");

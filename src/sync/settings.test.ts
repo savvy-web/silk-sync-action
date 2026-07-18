@@ -15,7 +15,7 @@ const run = (dryRun: boolean) => {
 	});
 	return syncSettings("o", "r", { has_wiki: false }, currentRepo, dryRun).pipe(
 		Effect.provide(layer),
-		Effect.provide(Logger.replace(Logger.defaultLogger, Logger.none)),
+		Effect.provide(Logger.layer([])),
 		Effect.runPromise,
 	);
 };
@@ -42,7 +42,7 @@ describe("syncSettings", () => {
 		});
 		const { changes, applied } = await syncSettings("o", "r", { has_wiki: true }, currentRepo, false).pipe(
 			Effect.provide(layer),
-			Effect.provide(Logger.replace(Logger.defaultLogger, Logger.none)),
+			Effect.provide(Logger.layer([])),
 			Effect.runPromise,
 		);
 		expect(changes).toEqual([]);

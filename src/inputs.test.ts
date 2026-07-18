@@ -4,8 +4,8 @@ import { parseInputs } from "./inputs.js";
 
 const run = (inputs: Record<string, string>) =>
 	parseInputs.pipe(
-		Effect.withConfigProvider(ConfigProvider.fromMap(new Map(Object.entries(inputs)))),
-		Effect.provide(Logger.replace(Logger.defaultLogger, Logger.none)),
+		Effect.provide(ConfigProvider.layer(ConfigProvider.fromUnknown(inputs))),
+		Effect.provide(Logger.layer([])),
 		Effect.runPromiseExit,
 	);
 

@@ -45,7 +45,7 @@ export const syncSettings = (
 
 		const applied = yield* updateRepo(owner, repo, toApply).pipe(
 			Effect.as(true),
-			Effect.catchAll((e) => {
+			Effect.catch((e) => {
 				const msg =
 					e.status === 422
 						? `some settings rejected by org policy (422): ${e.reason}`

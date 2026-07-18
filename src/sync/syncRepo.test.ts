@@ -37,7 +37,7 @@ describe("syncRepo", () => {
 		);
 		const result = await syncRepo(repo, config, new Map(), inputs).pipe(
 			Effect.provide(layer),
-			Effect.provide(Logger.replace(Logger.defaultLogger, Logger.none)),
+			Effect.provide(Logger.layer([])),
 			Effect.runPromise,
 		);
 		expect(result.success).toBe(true);
@@ -59,11 +59,7 @@ describe("syncRepo", () => {
 			...inputs,
 			syncSettings: false,
 			syncProjects: false,
-		}).pipe(
-			Effect.provide(layer),
-			Effect.provide(Logger.replace(Logger.defaultLogger, Logger.none)),
-			Effect.runPromise,
-		);
+		}).pipe(Effect.provide(layer), Effect.provide(Logger.layer([])), Effect.runPromise);
 		expect(result.success).toBe(false);
 		expect(result.errors[0].target).toBe("repo");
 	});
@@ -96,11 +92,7 @@ describe("syncRepo", () => {
 			...inputs,
 			syncSettings: false,
 			skipBackfill: true,
-		}).pipe(
-			Effect.provide(layer),
-			Effect.provide(Logger.replace(Logger.defaultLogger, Logger.none)),
-			Effect.runPromise,
-		);
+		}).pipe(Effect.provide(layer), Effect.provide(Logger.layer([])), Effect.runPromise);
 		expect(result.projectNumber).toBe(5);
 		expect(result.projectLinkStatus).toBe("linked");
 		expect(result.projectTitle).toBe("Board");

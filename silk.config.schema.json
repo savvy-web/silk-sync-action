@@ -1,104 +1,216 @@
 {
 	"$schema": "http://json-schema.org/draft-07/schema#",
-	"$defs": {
+	"title": "Silk Sync Configuration",
+	"description": "Configuration for the silk-sync workflow that standardizes repository labels and settings across the organization.",
+	"$ref": "#/definitions/SilkConfig",
+	"definitions": {
+		"LabelDefinition": {
+			"type": "object",
+			"properties": {
+				"name": {
+					"type": "string",
+					"allOf": [
+						{
+							"minLength": 1
+						},
+						{
+							"maxLength": 50,
+							"description": "Label name (case-insensitive matching)"
+						}
+					]
+				},
+				"description": {
+					"type": "string",
+					"allOf": [
+						{
+							"maxLength": 100,
+							"description": "Short label description"
+						}
+					]
+				},
+				"color": {
+					"type": "string",
+					"allOf": [
+						{
+							"pattern": "^[0-9a-fA-F]{6}$",
+							"description": "Hex color without # prefix"
+						}
+					]
+				}
+			},
+			"required": ["name", "description", "color"],
+			"additionalProperties": false,
+			"title": "Label Definition"
+		},
+		"RepositorySettings": {
+			"type": "object",
+			"properties": {
+				"has_wiki": {
+					"anyOf": [
+						{
+							"type": "boolean"
+						},
+						{
+							"type": "null"
+						}
+					]
+				},
+				"has_issues": {
+					"anyOf": [
+						{
+							"type": "boolean"
+						},
+						{
+							"type": "null"
+						}
+					]
+				},
+				"has_projects": {
+					"anyOf": [
+						{
+							"type": "boolean"
+						},
+						{
+							"type": "null"
+						}
+					]
+				},
+				"has_discussions": {
+					"anyOf": [
+						{
+							"type": "boolean"
+						},
+						{
+							"type": "null"
+						}
+					]
+				},
+				"allow_merge_commit": {
+					"anyOf": [
+						{
+							"type": "boolean"
+						},
+						{
+							"type": "null"
+						}
+					]
+				},
+				"allow_squash_merge": {
+					"anyOf": [
+						{
+							"type": "boolean"
+						},
+						{
+							"type": "null"
+						}
+					]
+				},
+				"squash_merge_commit_title": {
+					"anyOf": [
+						{
+							"type": "string",
+							"enum": ["PR_TITLE", "COMMIT_OR_PR_TITLE"]
+						},
+						{
+							"type": "null"
+						}
+					]
+				},
+				"squash_merge_commit_message": {
+					"anyOf": [
+						{
+							"type": "string",
+							"enum": ["PR_BODY", "COMMIT_MESSAGES", "BLANK"]
+						},
+						{
+							"type": "null"
+						}
+					]
+				},
+				"allow_rebase_merge": {
+					"anyOf": [
+						{
+							"type": "boolean"
+						},
+						{
+							"type": "null"
+						}
+					]
+				},
+				"allow_update_branch": {
+					"anyOf": [
+						{
+							"type": "boolean"
+						},
+						{
+							"type": "null"
+						}
+					]
+				},
+				"delete_branch_on_merge": {
+					"anyOf": [
+						{
+							"type": "boolean"
+						},
+						{
+							"type": "null"
+						}
+					]
+				},
+				"web_commit_signoff_required": {
+					"anyOf": [
+						{
+							"type": "boolean"
+						},
+						{
+							"type": "null"
+						}
+					]
+				},
+				"allow_auto_merge": {
+					"anyOf": [
+						{
+							"type": "boolean"
+						},
+						{
+							"type": "null"
+						}
+					]
+				}
+			},
+			"additionalProperties": false,
+			"title": "Repository Settings",
+			"description": "Repository settings to enforce"
+		},
 		"SilkConfig": {
 			"type": "object",
-			"required": ["labels", "settings"],
 			"properties": {
 				"$schema": {
-					"type": "string",
+					"anyOf": [
+						{
+							"type": "string"
+						},
+						{
+							"type": "null"
+						}
+					],
 					"description": "Path to the JSON schema file"
 				},
 				"labels": {
 					"type": "array",
+					"description": "Labels to sync across repositories",
 					"items": {
-						"$ref": "#/$defs/LabelDefinition"
-					},
-					"description": "Labels to sync across repositories"
+						"$ref": "#/definitions/LabelDefinition"
+					}
 				},
 				"settings": {
-					"type": "object",
-					"required": [],
-					"properties": {
-						"has_wiki": {
-							"type": "boolean"
-						},
-						"has_issues": {
-							"type": "boolean"
-						},
-						"has_projects": {
-							"type": "boolean"
-						},
-						"has_discussions": {
-							"type": "boolean"
-						},
-						"allow_merge_commit": {
-							"type": "boolean"
-						},
-						"allow_squash_merge": {
-							"type": "boolean"
-						},
-						"squash_merge_commit_title": {
-							"type": "string",
-							"enum": ["PR_TITLE", "COMMIT_OR_PR_TITLE"]
-						},
-						"squash_merge_commit_message": {
-							"type": "string",
-							"enum": ["PR_BODY", "COMMIT_MESSAGES", "BLANK"]
-						},
-						"allow_rebase_merge": {
-							"type": "boolean"
-						},
-						"allow_update_branch": {
-							"type": "boolean"
-						},
-						"delete_branch_on_merge": {
-							"type": "boolean"
-						},
-						"web_commit_signoff_required": {
-							"type": "boolean"
-						},
-						"allow_auto_merge": {
-							"type": "boolean"
-						}
-					},
-					"additionalProperties": false,
-					"description": "Repository settings to enforce",
-					"title": "Repository Settings"
+					"$ref": "#/definitions/RepositorySettings"
 				}
 			},
+			"required": ["labels", "settings"],
 			"additionalProperties": false,
-			"description": "Organization-wide sync configuration",
-			"title": "Silk Config"
-		},
-		"LabelDefinition": {
-			"type": "object",
-			"required": ["name", "description", "color"],
-			"properties": {
-				"name": {
-					"type": "string",
-					"description": "Label name (case-insensitive matching)",
-					"title": "maxLength(50)",
-					"minLength": 1,
-					"maxLength": 50
-				},
-				"description": {
-					"type": "string",
-					"description": "Short label description",
-					"title": "maxLength(100)",
-					"maxLength": 100
-				},
-				"color": {
-					"type": "string",
-					"description": "Hex color without # prefix",
-					"pattern": "^[0-9a-fA-F]{6}$"
-				}
-			},
-			"additionalProperties": false,
-			"title": "Label Definition"
+			"title": "Silk Config",
+			"description": "Organization-wide sync configuration"
 		}
-	},
-	"$ref": "#/$defs/SilkConfig",
-	"title": "Silk Sync Configuration",
-	"description": "Configuration for the silk-sync workflow that standardizes repository labels and settings across the organization."
+	}
 }

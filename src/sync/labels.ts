@@ -17,7 +17,7 @@ export const syncLabels = (
 > =>
 	Effect.gen(function* () {
 		const existing = yield* listLabels(owner, repo).pipe(
-			Effect.catchAll((e) =>
+			Effect.catch((e) =>
 				Effect.logWarning(`Could not list labels for ${owner}/${repo}: ${e.reason}`).pipe(
 					Effect.as([] as ReadonlyArray<GitHubLabel>),
 				),
@@ -33,7 +33,7 @@ export const syncLabels = (
 		const apply = (operation: string, name: string, effect: Effect.Effect<void, GitHubClientError, GitHubClient>) =>
 			effect.pipe(
 				Effect.as(true),
-				Effect.catchAll((e) => {
+				Effect.catch((e) => {
 					errors.push({ target: name, operation, error: e.reason });
 					return Effect.logWarning(`Failed to ${operation} label "${name}": ${e.reason}`).pipe(Effect.as(false));
 				}),

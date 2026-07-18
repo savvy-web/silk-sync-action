@@ -14,7 +14,7 @@ const run = (repoResponse: unknown | undefined, names: string[]) => {
 	});
 	return discoverByExplicitList("acme", names).pipe(
 		Effect.provide(layer),
-		Effect.provide(Logger.replace(Logger.defaultLogger, Logger.none)),
+		Effect.provide(Logger.layer([])),
 		Effect.runPromiseExit,
 	);
 };

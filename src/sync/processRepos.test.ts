@@ -29,11 +29,7 @@ describe("processRepos", () => {
 			syncSettings: false,
 			syncProjects: false,
 			skipBackfill: false,
-		}).pipe(
-			Effect.provide(layer),
-			Effect.provide(Logger.replace(Logger.defaultLogger, Logger.none)),
-			Effect.runPromise,
-		);
+		}).pipe(Effect.provide(layer), Effect.provide(Logger.layer([])), Effect.runPromise);
 		expect(results).toHaveLength(2);
 		expect(results.map((r) => r.repo)).toEqual(["r1", "r2"]);
 	});

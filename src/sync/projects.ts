@@ -54,7 +54,7 @@ export const resolveProjects = (
 						if (p.closed) return { ok: false, error: `Project "${p.title}" is closed` };
 						return { ok: true, project: { id: p.id, title: p.title, number: p.number, closed: p.closed } };
 					}),
-					Effect.catchAll((e) => Effect.succeed({ ok: false as const, error: e.reason })),
+					Effect.catch((e) => Effect.succeed({ ok: false as const, error: e.reason })),
 				);
 			cache.set(num, entry);
 		}
@@ -101,13 +101,13 @@ export const syncProject = (
 				.mutation("linkRepoToProject", LINK_REPO_MUTATION, { projectId: project.id, repositoryId: repoNodeId })
 				.pipe(
 					Effect.as("linked" as const),
-					Effect.catchAll((e) => Effect.succeed(isAlreadyExists(e) ? ("already" as const) : ("error" as const))),
+					Effect.catch((e) => Effect.succeed(isAlreadyExists(e) ? ("already" as const) : ("error" as const))),
 				);
 
 		let itemsAdded = 0;
 		let itemsAlreadyPresent = 0;
 		if (!skipBackfill && linkStatus !== "error") {
-			const issues = yield* listOpenIssues(owner, repo).pipe(Effect.catchAll(() => Effect.succeed([])));
+			const issues = yield* listOpenIssues(owner, repo).pipe(Effect.catch(() => Effect.succeed([])));
 			for (const item of issues) {
 				if (dryRun) {
 					itemsAdded++;
@@ -117,7 +117,7 @@ export const syncProject = (
 					.mutation("addItemToProject", ADD_ITEM_MUTATION, { projectId: project.id, contentId: item.node_id })
 					.pipe(
 						Effect.as("added" as const),
-						Effect.catchAll((e) => Effect.succeed(isAlreadyExists(e) ? ("exists" as const) : ("error" as const))),
+						Effect.catch((e) => Effect.succeed(isAlreadyExists(e) ? ("exists" as const) : ("error" as const))),
 					);
 				if (outcome === "added") itemsAdded++;
 				else if (outcome === "exists") itemsAlreadyPresent++;
