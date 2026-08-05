@@ -1,7 +1,7 @@
 import { Effect, Exit, Logger } from "effect";
 import { describe, expect, it } from "vitest";
+import { discoverRepos } from "../../src/discovery/index.js";
 import { githubTestLayer } from "../test-support.js";
-import { discoverRepos } from "./index.js";
 
 const layer = githubTestLayer({
 	request: {

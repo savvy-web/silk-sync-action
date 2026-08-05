@@ -1,8 +1,8 @@
 import { Effect, Logger } from "effect";
 import { describe, expect, it } from "vitest";
-import type { LabelDefinition } from "../schemas.js";
+import type { LabelDefinition } from "../../src/schemas.js";
+import { syncLabels } from "../../src/sync/labels.js";
 import { githubTestLayer } from "../test-support.js";
-import { syncLabels } from "./labels.js";
 
 const desired: ReadonlyArray<LabelDefinition> = [
 	{ name: "bug", description: "A bug", color: "d73a4a" },

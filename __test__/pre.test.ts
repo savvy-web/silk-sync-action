@@ -2,7 +2,7 @@ import { AppIdentity, GitHubApp, InstallationToken } from "@effected/github";
 import { ActionEnvironment, ActionInput, ActionOutputs, ActionState } from "@effected/github-actions";
 import { DateTime, Effect, Exit, Layer, Logger, Redacted, Schema } from "effect";
 import { describe, expect, it } from "vitest";
-import { REQUIRED_PERMISSIONS, pre } from "./pre.js";
+import { REQUIRED_PERMISSIONS, pre } from "../src/pre.js";
 
 const tokenWith = (permissions: Readonly<Record<string, string>>): InstallationToken =>
 	new InstallationToken({

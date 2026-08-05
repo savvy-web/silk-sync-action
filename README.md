@@ -164,12 +164,36 @@ and validation.
 | `app-private-key` | Yes | | GitHub App private key (PEM format) |
 | `config-file` | Yes | `.github/silk.config.json` | Path to the JSON config file (labels + settings) |
 | `custom-properties` | No | | Multiline `key=value` pairs for org custom property matching (AND logic) |
-| `repos` | No | | Explicit repository names, one per line. Bare names or `owner/repo` |
+| `repos` | No | | Explicit repository names, as bare names or `owner/repo`. One per line, `-` bullets, comma-separated, or a JSON array (see [below](#repos-input-formats)) |
 | `dry-run` | No | `false` | Preview changes without applying them |
 | `remove-custom-labels` | No | `false` | Remove labels not defined in the config |
 | `sync-settings` | No | `true` | Sync repository settings |
 | `sync-projects` | No | `true` | Sync project linking and backfill |
 | `skip-backfill` | No | `false` | Link repos to projects only, skip adding items |
+
+### `repos` input formats
+
+The `repos` input accepts four spellings, so you can use whichever reads best
+in your workflow. All four produce the same list, and `#` comments are stripped
+from every form.
+
+```yaml
+# One per line
+repos: |
+  owner/repo-a
+  repo-b        # bare names resolve against the workflow's owner
+
+# Bullets
+repos: |
+  - owner/repo-a
+  - repo-b
+
+# Comma-separated
+repos: owner/repo-a, repo-b
+
+# JSON array — useful when the list comes from another step's output
+repos: '["owner/repo-a", "repo-b"]'
+```
 
 ## Outputs
 

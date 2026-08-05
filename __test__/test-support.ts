@@ -2,9 +2,8 @@
  * Shared test doubles.
  *
  * @remarks
- * Not part of the action — nothing under `src/` outside the three entry points
- * is bundled. It lives here rather than in a `__test__/` tree because this
- * repository colocates its `*.test.ts` files with the code they cover.
+ * Lives in `__test__/` alongside the suites it serves, so `src/` holds only
+ * shipped code and a test edit never invalidates the bundle's build cache.
  *
  * The shape is deliberate: the **real** `GitHubRepository` and `GitHubIssue`
  * layers run over a recorded-response client, so route interpolation, response
@@ -32,9 +31,36 @@ export interface GitHubTestOptions {
 	readonly graphql?: Readonly<Record<string, GraphQLScript>>;
 	/** Every GraphQL document name the code under test sent, in order. */
 	readonly graphqlCalls?: Array<string>;
+	/**
+	 * Every REST call the code under test made, with the repository it was
+	 * scoped to.
+	 *
+	 * @remarks
+	 * The recorded scope is what proves a call acted on the intended repository.
+	 * A result field copied from the caller's own argument cannot: it reads back
+	 * the same value whether the request went to the right repository or to the
+	 * ambient one.
+	 */
+	readonly requests?: Array<RecordedRequest>;
 	/** The ambient repository. Defaults to `acme/r`. */
 	readonly repo?: { readonly owner: string; readonly repo: string };
 }
+
+/** One REST call, with the `owner`/`repo` it interpolated. */
+export interface RecordedRequest {
+	readonly route: string;
+	readonly owner: unknown;
+	readonly repo: unknown;
+}
+
+/**
+ * Widen request params to just the repository scope.
+ *
+ * @remarks
+ * Every property is optional, so any object satisfies it — which is what lets
+ * a generic `Rest.Params<R>` be read for `owner`/`repo` without a cast.
+ */
+const scopeOf = (params: object): { owner?: unknown; repo?: unknown } => params;
 
 /**
  * A recorded-response GitHub stack: client, resource services and `Repo`.
@@ -78,7 +104,21 @@ export const githubTestLayer = (
 
 	const client = Layer.effect(
 		GitHubClient,
-		Effect.map(GitHubClient, (base): GitHubClientShape => ({ ...base, graphql })),
+		Effect.map(GitHubClient, (base): GitHubClientShape => {
+			const note = (route: string, params: object): void => {
+				const { owner, repo } = scopeOf(params);
+				options.requests?.push({ route, owner, repo });
+			};
+			const request: GitHubClientShape["request"] = (route, params) => {
+				note(route, params);
+				return base.request(route, params);
+			};
+			const paginate: GitHubClientShape["paginate"] = (route, params, pageOptions) => {
+				note(route, params);
+				return base.paginate(route, params, pageOptions);
+			};
+			return { ...base, request, paginate, graphql };
+		}),
 	).pipe(Layer.provide(fixture));
 
 	return Layer.mergeAll(

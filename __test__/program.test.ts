@@ -5,8 +5,8 @@ import { NodeFileSystem } from "@effect/platform-node";
 import { ActionEnvironment, ActionInput, ActionLogger, ActionOutputs } from "@effected/github-actions";
 import { Effect, Layer, Logger } from "effect";
 import { describe, expect, it } from "vitest";
-import { program } from "./program.js";
-import type { SilkConfig } from "./schemas.js";
+import { program } from "../src/program.js";
+import type { SilkConfig } from "../src/schemas.js";
 import type { GitHubTestOptions } from "./test-support.js";
 import { githubTestLayer } from "./test-support.js";
 

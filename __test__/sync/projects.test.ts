@@ -1,8 +1,8 @@
 import { Effect, Logger } from "effect";
 import { describe, expect, it } from "vitest";
+import type { ProjectCacheEntry } from "../../src/sync/projects.js";
+import { resolveProjects, syncProject } from "../../src/sync/projects.js";
 import { githubTestLayer } from "../test-support.js";
-import type { ProjectCacheEntry } from "./projects.js";
-import { resolveProjects, syncProject } from "./projects.js";
 
 const ROADMAP = { id: "P1", title: "Roadmap", number: 7, closed: false };
 const cacheWithRoadmap = () => new Map([[7, { ok: true as const, project: ROADMAP }]]);

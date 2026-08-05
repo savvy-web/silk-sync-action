@@ -238,7 +238,7 @@ lib/
     +-- generate-schema.ts  # build-time JSON Schema generation from SilkConfig
 ```
 
-Each source file has a co-located `*.test.ts`. The boundaries worth knowing:
+Each source file has a matching suite under `__test__/`, mirroring the `src/` tree. The boundaries worth knowing:
 
 - **Discovery** (`src/discovery/`) produces `DiscoveredRepo[]`. `customProperties.ts` matches AND/case-insensitively over the rows returned by `listOrgRepoProperties`; `explicit.ts` validates each name via `getRepo` under a per-candidate `Repo.provide`; `index.ts` unions and dedupes by lowercased `fullName` (org properties win on conflict) and fails with `DiscoveryError` when nothing is found.
 - **Sync** (`src/sync/`) is a strict delegation chain: `processRepos` -> `Effect.partition` -> `syncRepo` -> `syncLabels` / `syncSettings` / `syncProject`. `syncRepo` never fails (it captures errors into `SyncErrorRecord[]`) and provides `Repo` once for the whole chain. See `src/sync/syncRepo.ts` for the exact ordering and the `project-tracking` / `project-number` custom-property gate on project sync.
@@ -397,7 +397,18 @@ When `dry-run: true`, reads run normally but every write is skipped; `syncLabels
 
 ## Testing Strategy
 
-Vitest with v8 coverage and `pool: "forks"` for Effect-TS compatibility. Every `src` file has a co-located `*.test.ts`; the suite is 89 tests as of the `@effected` port.
+Vitest with v8 coverage and `pool: "forks"` for Effect-TS compatibility. The suite is 93 tests, and lives in `__test__/` mirroring `src/` — the canonical layout the builder's tsconfig already expects.
+
+Tests are **not** colocated with source. `test-support.ts` moved with them, so `src/` contains only shipped code.
+
+The stated motivation was Turbo build-cache isolation — a test edit should not invalidate the bundle. **That benefit does not follow from the move, and is not realized today.** Measured on this tree: with tests in `__test__/`, appending a line to `__test__/sync/labels.test.ts` still takes `build:prod` from `2 cached, 2 total >>> FULL TURBO` to `0 cached, 2 total`.
+
+Two things defeat it, and neither is about where the files sit:
+
+1. `build:prod`'s `inputs` include `$TURBO_DEFAULT$`, which already covers every non-ignored file in the package. Adding or narrowing explicit globs alongside it cannot subtract anything.
+2. More fundamentally, `build:prod` `dependsOn` `types:check`, and `types:check` must cover `__test__` or tests stop being typechecked. A dependency task's hash contributes to the dependent's, so a test edit invalidates `types:check` and therefore `build:prod`, whatever `build:prod`'s own inputs say.
+
+Realizing the benefit needs a task-graph change — e.g. splitting a `src`-only typecheck that gates `build:prod` from a full typecheck that covers tests — which trades a second `tsc` invocation for the cache hit. That is a deliberate decision, not a side effect of moving files, and has not been made. See [Known Follow-ups](#known-follow-ups).
 
 The runner is **plain vitest** (`describe`/`it`/`expect` plus `Effect.runPromise`), **not `@effect/vitest`**. That is a deliberate deferral, not an oversight: the pre-existing suite was the port's only characterization gate, and converting the runner at the same time as the service doubles would have installed a virtual `TestClock` across the whole suite while the thing being verified was the port itself. Moving to `@effect/vitest` is [known follow-up work](#known-follow-ups).
 
@@ -437,6 +448,7 @@ Carried forward from the `@effected` port, recorded rather than papered over:
 
 - **Adopt `@effect/vitest`.** The suite is still plain vitest. The port moved the doubles, not the runner, deliberately — see [Testing Strategy](#testing-strategy).
 - **Re-verify (and probably delete) the `ignore` list in `action.config.ts`.** Confirm each of `xmlbuilder2`, `libxmljs2` and `ajv-formats-draft2019` is still reachable by the bundler before keeping the alias; the bundle evidence suggests none of them are.
+- **Decide whether to isolate `build:prod` from test-file edits.** Moving tests to `__test__/` did not achieve this on its own — see [Testing Strategy](#testing-strategy) for the measurement and the two reasons. It needs a `src`-only typecheck gating `build:prod`, separate from the full typecheck that covers `__test__`, at the cost of a second `tsc` run. Worth it only if bundle rebuilds become a real cost; today a cold `build:prod` is under two seconds.
 
 ---
 

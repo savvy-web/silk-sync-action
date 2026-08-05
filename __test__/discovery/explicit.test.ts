@@ -1,7 +1,7 @@
 import { Effect, Exit, Logger } from "effect";
 import { describe, expect, it } from "vitest";
+import { discoverByExplicitList } from "../../src/discovery/explicit.js";
 import { githubTestLayer } from "../test-support.js";
-import { discoverByExplicitList } from "./explicit.js";
 
 const run = (repoResponse: unknown | undefined, names: ReadonlyArray<string>) => {
 	const layer = githubTestLayer(

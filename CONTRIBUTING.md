@@ -43,6 +43,7 @@ silk-sync-action/
 │   ├── discovery/              # Repo discovery (custom props + explicit list)
 │   ├── sync/                   # Label, settings, and project sync logic
 │   └── reporting/              # Stats aggregation and step summary output
+├── __test__/                   # Test suites, mirroring the src/ tree
 ├── lib/
 │   ├── configs/                # Shared configuration files
 │   └── scripts/                # Build and codegen scripts

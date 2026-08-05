@@ -1,6 +1,6 @@
 import { Schema } from "effect";
 import { describe, expect, it } from "vitest";
-import { ResultsOutput, SilkConfig } from "./schemas.js";
+import { ResultsOutput, SilkConfig } from "../src/schemas.js";
 
 describe("SilkConfig", () => {
 	it("decodes a minimal valid config", () => {

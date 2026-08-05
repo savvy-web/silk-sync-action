@@ -104,7 +104,7 @@ Each push is guarded: if the remote `v<major>` tag or `dev` already points at it
 - `src/state.ts` -- `ActionState` structs (StartTimeState) + state keys
 - `src/layers/app.ts` -- PreLive / MainLive / PostLive layer composition
 - `src/github/reads.ts` -- Route-keyed `GitHubClient` wrappers, resolved against the ambient `Repo`
-- `src/test-support.ts` -- `githubTestLayer`: the shared recorded-response GitHub stack (not bundled)
+- `__test__/` -- test suites mirroring `src/`, plus `test-support.ts` (`githubTestLayer`, the shared recorded-response GitHub stack)
 - `src/discovery/` -- Repository discovery (custom properties + explicit repos, merge)
 - `src/sync/` -- Sync orchestration (labels, settings, projects, syncRepo, processRepos)
 - `src/reporting/` -- Stats aggregation + step-summary markdown
@@ -132,9 +132,9 @@ Each push is guarded: if the remote `v<major>` tag or `dev` already points at it
 ### Testing
 
 - **Vitest** with v8 coverage, `pool: "forks"` for Effect-TS compatibility. Plain vitest (`describe`/`it`/`expect` + `Effect.runPromise`), **not** `@effect/vitest` — the port moved the doubles, not the runner, deliberately: converting both at once installs a virtual `TestClock` across the suite that was the port's only characterization gate.
-- Tests colocated as `*.test.ts`
+- **Tests live in `__test__/`, mirroring `src/`** (`__test__/sync/labels.test.ts` covers `src/sync/labels.ts`) — never colocated, which is the layout the builder's tsconfig already includes. `src/` therefore holds only shipped code. Note this does **not** currently buy build-cache isolation: `build:prod` `dependsOn` `types:check`, `types:check` must cover `__test__`, and a dependency's hash feeds the dependent's, so a test edit still invalidates the bundle. Narrowing `build:prod`'s own `inputs` does nothing about that — measured, not assumed.
 - **There is no `/testing` subpath.** Every service ships its own `makeTest(overrides?)` / `layerTest(overrides?)`, and an unstubbed member **dies naming itself** — which is what makes a partial double proof that a test touches nothing it did not stub. `ActionOutputs.layerTest`, `ActionState.layerTest`, `ActionLogger.layerTest`, `ActionEnvironment.layerTest`, `GitHubApp.layerTest`.
-- **`src/test-support.ts`'s `githubTestLayer`** is the shared GitHub stack: recorded responses keyed by **route literal** through `GitHubClient.layerFixture` (which pages them for real, through the same engine the live client uses), the **real** `GitHubRepository` / `GitHubIssue` layers over it, and a `Repo`. GraphQL is scripted by document name on top, because an unscripted document in `layerFixture` is a **defect** and every GraphQL failure path here is a recovered *failure*.
+- **`__test__/test-support.ts`'s `githubTestLayer`** is the shared GitHub stack: recorded responses keyed by **route literal** through `GitHubClient.layerFixture` (which pages them for real, through the same engine the live client uses), the **real** `GitHubRepository` / `GitHubIssue` layers over it, and a `Repo`. GraphQL is scripted by document name on top, because an unscripted document in `layerFixture` is a **defect** and every GraphQL failure path here is a recovered *failure*.
 - **Supply inputs with `ActionInput.layer({ "input-name": "value" })`**, never a bare `ConfigProvider` keyed by the plain name. `ActionInput` owns the `INPUT_` derivation; a provider that does not is a silent false green. `ActionInput.variable(name)` spells the runner variable for the one test that must.
 - **`ConfigFile.read` is exercised against a real temp file** through `NodeFileSystem.layer` — the claim is about the filesystem, so a filesystem double would only assert the double.
 

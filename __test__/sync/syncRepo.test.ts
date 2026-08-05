@@ -1,8 +1,9 @@
 import { Effect, Logger } from "effect";
 import { describe, expect, it } from "vitest";
-import type { DiscoveredRepo, SilkConfig } from "../schemas.js";
+import type { DiscoveredRepo, SilkConfig } from "../../src/schemas.js";
+import { syncRepo } from "../../src/sync/syncRepo.js";
+import type { RecordedRequest } from "../test-support.js";
 import { githubTestLayer } from "../test-support.js";
-import { syncRepo } from "./syncRepo.js";
 
 const config: SilkConfig = {
 	labels: [{ name: "bug", description: "", color: "d73a4a" }],
@@ -47,8 +48,10 @@ describe("syncRepo", () => {
 	});
 
 	it("acts on the discovered repository, not on some ambient one", async () => {
-		// `githubTestLayer` seeds `Repo` as acme/r; `syncRepo` overrides it with
-		// the discovered repo, so the result must carry the discovered identity.
+		// `githubTestLayer` seeds `Repo` as wrong/wrong; `syncRepo` overrides it
+		// with the discovered repo. Asserting on `result.repo`/`result.owner`
+		// alone would prove nothing — those are copied straight from the argument
+		// and read back the same either way. The recorded requests are the proof.
 		const other: DiscoveredRepo = {
 			name: "other",
 			owner: "acme",
@@ -56,8 +59,10 @@ describe("syncRepo", () => {
 			nodeId: "N",
 			customProperties: {},
 		};
+		const requests: Array<RecordedRequest> = [];
 		const layer = githubTestLayer({
 			repo: { owner: "wrong", repo: "wrong" },
+			requests,
 			request: { "GET /repos/{owner}/{repo}": REPO_PAYLOAD },
 			paginate: { "GET /repos/{owner}/{repo}/labels": [] },
 		});
@@ -68,6 +73,14 @@ describe("syncRepo", () => {
 		}).pipe(Effect.provide(layer), Effect.provide(Logger.layer([])), Effect.runPromise);
 		expect(result.repo).toBe("other");
 		expect(result.owner).toBe("acme");
+		expect(requests).not.toHaveLength(0);
+		for (const sent of requests) {
+			expect({ route: sent.route, owner: sent.owner, repo: sent.repo }).toEqual({
+				route: sent.route,
+				owner: "acme",
+				repo: "other",
+			});
+		}
 	});
 
 	it("records an error when the repo fetch fails", async () => {

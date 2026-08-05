@@ -2,7 +2,7 @@ import { GitHubApp } from "@effected/github";
 import { ActionState } from "@effected/github-actions";
 import { Effect, Layer, Logger, Option, Schema } from "effect";
 import { describe, expect, it } from "vitest";
-import { post } from "./post.js";
+import { post } from "../src/post.js";
 
 /**
  * A state double serving one encoded entry, decoded through the caller's own

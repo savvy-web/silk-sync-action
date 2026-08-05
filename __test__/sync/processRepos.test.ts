@@ -1,8 +1,8 @@
 import { Effect, Logger } from "effect";
 import { describe, expect, it } from "vitest";
-import type { DiscoveredRepo, SilkConfig } from "../schemas.js";
+import type { DiscoveredRepo, SilkConfig } from "../../src/schemas.js";
+import { processRepos } from "../../src/sync/processRepos.js";
 import { githubTestLayer } from "../test-support.js";
-import { processRepos } from "./processRepos.js";
 
 const config: SilkConfig = { labels: [], settings: {} };
 const repos: ReadonlyArray<DiscoveredRepo> = [

@@ -1,7 +1,7 @@
 import { ActionInput } from "@effected/github-actions";
 import { Effect, Exit, Logger } from "effect";
 import { describe, expect, it } from "vitest";
-import { parseInputs } from "./inputs.js";
+import { parseInputs } from "../src/inputs.js";
 
 /**
  * Inputs are injected through `ActionInput.layer`, never a bare
@@ -87,6 +87,28 @@ describe("parseInputs", () => {
 		const exit = await run({ repos: "a\n# not a repo\nb" });
 		expect(Exit.isSuccess(exit)).toBe(true);
 		if (Exit.isSuccess(exit)) expect(exit.value.repos).toEqual(["a", "b"]);
+	});
+
+	/**
+	 * `repos` is a documented four-way surface, so each accepted spelling is
+	 * pinned here.
+	 *
+	 * @remarks
+	 * The newline case is the one the legacy hand-rolled splitter supported; the
+	 * other three are the widening `ActionInput.list` brought, and they are why
+	 * `action.yml` advertises more than "one per line". A regression that
+	 * narrowed the parser back to newline-only would still pass every other test
+	 * in this file.
+	 */
+	it.each([
+		["newlines", "owner/a\nb"],
+		["bullets", "- owner/a\n- b"],
+		["commas", "owner/a, b"],
+		["a JSON array", '["owner/a", "b"]'],
+	])("accepts repos as %s", async (_label, raw) => {
+		const exit = await run({ repos: raw });
+		expect(Exit.isSuccess(exit)).toBe(true);
+		if (Exit.isSuccess(exit)) expect(exit.value.repos).toEqual(["owner/a", "b"]);
 	});
 
 	it("fails when neither repos nor custom-properties is set", async () => {

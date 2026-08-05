@@ -1,8 +1,8 @@
 import { Effect, Logger } from "effect";
 import { describe, expect, it } from "vitest";
-import type { RepoSnapshot } from "../github/reads.js";
+import type { RepoSnapshot } from "../../src/github/reads.js";
+import { syncSettings } from "../../src/sync/settings.js";
 import { githubTestLayer } from "../test-support.js";
-import { syncSettings } from "./settings.js";
 
 const currentRepo: RepoSnapshot = {
 	node_id: "n",

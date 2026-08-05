@@ -1,7 +1,7 @@
 import { Effect, Logger } from "effect";
 import { describe, expect, it } from "vitest";
+import { discoverByCustomProperties } from "../../src/discovery/customProperties.js";
 import { githubTestLayer } from "../test-support.js";
-import { discoverByCustomProperties } from "./customProperties.js";
 
 const run = (rows: ReadonlyArray<unknown>, filters: ReadonlyArray<{ key: string; value: string }>) =>
 	discoverByCustomProperties("acme", filters).pipe(

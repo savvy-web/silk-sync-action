@@ -1,7 +1,7 @@
 import { Effect } from "effect";
 import { describe, expect, it } from "vitest";
+import { getRepo, listLabels, listOrgRepoProperties } from "../../src/github/reads.js";
 import { githubTestLayer } from "../test-support.js";
-import { getRepo, listLabels, listOrgRepoProperties } from "./reads.js";
 
 describe("github reads", () => {
 	it("getRepo reads the ambient repository through the typed route", async () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { SyncStats } from "./stats.js";
-import { buildSummaryMarkdown } from "./summary.js";
+import type { SyncStats } from "../../src/reporting/stats.js";
+import { buildSummaryMarkdown } from "../../src/reporting/summary.js";
 
 const stats: SyncStats = {
 	total: 2,

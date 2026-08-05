@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { RepoSyncResult } from "../schemas.js";
-import { aggregateStats } from "./stats.js";
+import { aggregateStats } from "../../src/reporting/stats.js";
+import type { RepoSyncResult } from "../../src/schemas.js";
 
 const base: RepoSyncResult = {
 	repo: "r",
