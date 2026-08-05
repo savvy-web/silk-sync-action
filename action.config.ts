@@ -9,7 +9,10 @@ export default defineConfig({
 	build: {
 		minify: true,
 		// `@cyclonedx/cyclonedx-library` (pulled in transitively by
-		// `@savvy-web/github-action-effects`) ships optional plugins — XML
+		// `@effected/github-actions` -> `@effected/sbom`, whose modules this
+		// action never imports — the kit keeps them off the default runtime's
+		// import graph, but the resolver still walks them) ships optional
+		// plugins — XML
 		// serializers/validators and draft-2019 JSON validators — that this
 		// action never invokes. They aren't installed and would never be
 		// present in the deployed action, so `ignore` (alias to a throwing

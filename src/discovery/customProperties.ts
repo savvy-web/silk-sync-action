@@ -1,4 +1,4 @@
-import type { GitHubClient } from "@savvy-web/github-action-effects";
+import type { GitHubClient } from "@effected/github";
 import { Effect } from "effect";
 import { DiscoveryError } from "../errors.js";
 import { listOrgRepoProperties } from "../github/reads.js";

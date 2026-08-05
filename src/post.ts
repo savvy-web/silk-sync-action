@@ -1,4 +1,4 @@
-import { Action, ActionState, GitHubToken } from "@savvy-web/github-action-effects";
+import { Action, ActionState, GitHubToken } from "@effected/github-actions";
 import { Effect, Option } from "effect";
 import { PostLive } from "./layers/app.js";
 import { STATE_KEYS, StartTimeState } from "./state.js";

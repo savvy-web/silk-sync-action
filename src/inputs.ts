@@ -1,4 +1,4 @@
-import { ActionInput } from "@savvy-web/github-action-effects";
+import { ActionInput } from "@effected/github-actions";
 import { Config, Effect } from "effect";
 import { InvalidInputError } from "./errors.js";
 import type { CustomProperty } from "./schemas.js";
@@ -60,10 +60,13 @@ const parseCustomProperties = (
 	});
 
 export const parseInputs: Effect.Effect<SilkInputs, InvalidInputError | Config.ConfigError> = Effect.gen(function* () {
-	const configFile = yield* Config.string("config-file").pipe(Config.withDefault(".github/silk.config.json"));
-	const rawProps = yield* ActionInput.multiline("custom-properties").pipe(Config.withDefault([]));
+	const configFile = yield* ActionInput.string("config-file").pipe(Config.withDefault(".github/silk.config.json"));
+	const rawProps = yield* ActionInput.lines("custom-properties").pipe(Config.withDefault([]));
 	const customProperties = yield* parseCustomProperties(rawProps);
-	const repos = stripComments(yield* ActionInput.multiline("repos").pipe(Config.withDefault([])));
+	// `ActionInput.list` drops full-line `#` comments exactly as the hand-rolled
+	// stripper did, and additionally accepts bullets, commas and JSON arrays.
+	// Every input that parsed before parses to the same value.
+	const repos = yield* ActionInput.list("repos").pipe(Config.withDefault([]));
 
 	if (customProperties.length === 0 && repos.length === 0) {
 		return yield* Effect.fail(

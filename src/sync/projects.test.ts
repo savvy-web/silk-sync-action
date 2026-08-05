@@ -1,100 +1,203 @@
-import { GitHubClientTest, GitHubGraphQLTest } from "@savvy-web/github-action-effects/testing";
-import { Effect, Layer, Logger } from "effect";
+import { Effect, Logger } from "effect";
 import { describe, expect, it } from "vitest";
+import { githubTestLayer } from "../test-support.js";
 import type { ProjectCacheEntry } from "./projects.js";
 import { resolveProjects, syncProject } from "./projects.js";
 
-const baseRest = (issues: unknown[]) =>
-	GitHubClientTest.layer({
-		restResponses: new Map(),
-		graphqlResponses: new Map(),
-		paginateResponses: new Map([["issues.listForRepo", [issues]]]),
-		repo: { owner: "acme", repo: "r" },
-	});
+const ROADMAP = { id: "P1", title: "Roadmap", number: 7, closed: false };
+const cacheWithRoadmap = () => new Map([[7, { ok: true as const, project: ROADMAP }]]);
 
 describe("resolveProjects", () => {
 	it("caches resolved projects", async () => {
-		const gql = GitHubGraphQLTest.empty();
-		gql.state.queryResponses.set("resolveProject", {
-			organization: { projectV2: { id: "P1", title: "Roadmap", number: 7, closed: false } },
+		const layer = githubTestLayer({
+			graphql: { resolveProject: { ok: true, data: { organization: { projectV2: ROADMAP } } } },
 		});
 		const cache = await resolveProjects("acme", [7]).pipe(
-			Effect.provide(gql.layer),
+			Effect.provide(layer),
 			Effect.provide(Logger.layer([])),
 			Effect.runPromise,
 		);
-		expect(cache.get(7)).toEqual({
-			ok: true,
-			project: { id: "P1", title: "Roadmap", number: 7, closed: false },
-		} satisfies ProjectCacheEntry);
+		expect(cache.get(7)).toEqual({ ok: true, project: ROADMAP } satisfies ProjectCacheEntry);
+	});
+
+	it("caches a closed project as a failure", async () => {
+		const layer = githubTestLayer({
+			graphql: {
+				resolveProject: { ok: true, data: { organization: { projectV2: { ...ROADMAP, closed: true } } } },
+			},
+		});
+		const cache = await resolveProjects("acme", [7]).pipe(
+			Effect.provide(layer),
+			Effect.provide(Logger.layer([])),
+			Effect.runPromise,
+		);
+		expect(cache.get(7)).toEqual({ ok: false, error: 'Project "Roadmap" is closed' });
+	});
+
+	it("caches a missing project as a failure", async () => {
+		const layer = githubTestLayer({
+			graphql: { resolveProject: { ok: true, data: { organization: { projectV2: null } } } },
+		});
+		const cache = await resolveProjects("acme", [9]).pipe(
+			Effect.provide(layer),
+			Effect.provide(Logger.layer([])),
+			Effect.runPromise,
+		);
+		expect(cache.get(9)).toEqual({ ok: false, error: 'Project #9 not found in org "acme"' });
+	});
+
+	it("resolves each distinct number once", async () => {
+		const graphqlCalls: Array<string> = [];
+		const layer = githubTestLayer({
+			graphqlCalls,
+			graphql: { resolveProject: { ok: true, data: { organization: { projectV2: ROADMAP } } } },
+		});
+		await resolveProjects("acme", [7, 7, 7]).pipe(
+			Effect.provide(layer),
+			Effect.provide(Logger.layer([])),
+			Effect.runPromise,
+		);
+		expect(graphqlCalls).toEqual(["resolveProject"]);
 	});
 });
 
 describe("syncProject", () => {
 	it("links and backfills open items", async () => {
-		const gql = GitHubGraphQLTest.empty();
-		gql.state.mutationResponses.set("linkRepoToProject", { linkProjectV2ToRepository: { repository: { id: "r" } } });
-		gql.state.mutationResponses.set("addItemToProject", { addProjectV2ItemById: { item: { id: "i" } } });
-		const cache = new Map([
-			[7, { ok: true as const, project: { id: "P1", title: "Roadmap", number: 7, closed: false } }],
-		]);
-		const layer = Layer.merge(gql.layer, baseRest([{ id: 1, node_id: "ISSUE_1", number: 1, title: "x" }]));
+		const graphqlCalls: Array<string> = [];
+		const layer = githubTestLayer({
+			graphqlCalls,
+			graphql: {
+				linkRepoToProject: { ok: true, data: { linkProjectV2ToRepository: { repository: { id: "r" } } } },
+				addItemToProject: { ok: true, data: { addProjectV2ItemById: { item: { id: "i" } } } },
+			},
+			paginate: {
+				"GET /repos/{owner}/{repo}/issues": [
+					{ id: 1, node_id: "ISSUE_1", number: 1, title: "x", state: "open", labels: [], html_url: "u" },
+				],
+			},
+		});
 
-		const result = await syncProject("acme", "r", "REPO_NODE", 7, cache, false, false).pipe(
+		const result = await syncProject("acme", "r", "REPO_NODE", 7, cacheWithRoadmap(), false, false).pipe(
 			Effect.provide(layer),
 			Effect.provide(Logger.layer([])),
 			Effect.runPromise,
 		);
 		expect(result.linkStatus).toBe("linked");
 		expect(result.itemsAdded).toBe(1);
-		expect(gql.state.mutationCalls.map((c) => c.operation)).toEqual(["linkRepoToProject", "addItemToProject"]);
+		expect(graphqlCalls).toEqual(["linkRepoToProject", "addItemToProject"]);
+	});
+
+	it("maps an already-linked repository to 'already' via the error kind", async () => {
+		const layer = githubTestLayer({
+			graphql: {
+				linkRepoToProject: { ok: false, kind: "alreadyExists" },
+			},
+			paginate: { "GET /repos/{owner}/{repo}/issues": [] },
+		});
+		const result = await syncProject("acme", "r", "REPO_NODE", 7, cacheWithRoadmap(), false, true).pipe(
+			Effect.provide(layer),
+			Effect.provide(Logger.layer([])),
+			Effect.runPromise,
+		);
+		expect(result.linkStatus).toBe("already");
+	});
+
+	it("counts an already-present item separately from an added one", async () => {
+		const layer = githubTestLayer({
+			graphql: {
+				linkRepoToProject: { ok: true, data: {} },
+				addItemToProject: { ok: false, kind: "alreadyExists" },
+			},
+			paginate: {
+				"GET /repos/{owner}/{repo}/issues": [
+					{ id: 1, node_id: "I1", number: 1, title: "a", state: "open", labels: [], html_url: "u" },
+				],
+			},
+		});
+		const result = await syncProject("acme", "r", "REPO_NODE", 7, cacheWithRoadmap(), false, false).pipe(
+			Effect.provide(layer),
+			Effect.provide(Logger.layer([])),
+			Effect.runPromise,
+		);
+		expect(result.itemsAdded).toBe(0);
+		expect(result.itemsAlreadyPresent).toBe(1);
 	});
 
 	it("skips when the project is not in the cache", async () => {
-		const gql = GitHubGraphQLTest.empty();
 		const result = await syncProject("acme", "r", "REPO_NODE", 99, new Map(), false, false).pipe(
-			Effect.provide(Layer.merge(gql.layer, baseRest([]))),
+			Effect.provide(githubTestLayer({})),
 			Effect.provide(Logger.layer([])),
 			Effect.runPromise,
 		);
 		expect(result.linkStatus).toBe("skipped");
+		expect(result.projectTitle).toBeNull();
+	});
+
+	it("reports an error when the repository node id is empty", async () => {
+		const result = await syncProject("acme", "r", "", 7, cacheWithRoadmap(), false, false).pipe(
+			Effect.provide(githubTestLayer({})),
+			Effect.provide(Logger.layer([])),
+			Effect.runPromise,
+		);
+		expect(result.linkStatus).toBe("error");
+		expect(result.projectTitle).toBe("Roadmap");
 	});
 
 	it("dry-run reports the link and counts open items without mutating", async () => {
-		const gql = GitHubGraphQLTest.empty();
-		const cache = new Map([
-			[7, { ok: true as const, project: { id: "P1", title: "Roadmap", number: 7, closed: false } }],
-		]);
-		const layer = Layer.merge(
-			gql.layer,
-			baseRest([
-				{ id: 1, node_id: "I1", number: 1, title: "a" },
-				{ id: 2, node_id: "I2", number: 2, title: "b" },
-			]),
-		);
-		const result = await syncProject("acme", "r", "REPO_NODE", 7, cache, true, false).pipe(
+		const graphqlCalls: Array<string> = [];
+		const layer = githubTestLayer({
+			graphqlCalls,
+			paginate: {
+				"GET /repos/{owner}/{repo}/issues": [
+					{ id: 1, node_id: "I1", number: 1, title: "a", state: "open", labels: [], html_url: "u" },
+					{ id: 2, node_id: "I2", number: 2, title: "b", state: "open", labels: [], html_url: "u" },
+				],
+			},
+		});
+		const result = await syncProject("acme", "r", "REPO_NODE", 7, cacheWithRoadmap(), true, false).pipe(
 			Effect.provide(layer),
 			Effect.provide(Logger.layer([])),
 			Effect.runPromise,
 		);
 		expect(result.linkStatus).toBe("dry-run");
 		expect(result.itemsAdded).toBe(2);
-		expect(gql.state.mutationCalls).toHaveLength(0);
+		expect(graphqlCalls).toEqual([]);
+	});
+
+	it("skip-backfill links without touching items", async () => {
+		const graphqlCalls: Array<string> = [];
+		const layer = githubTestLayer({
+			graphqlCalls,
+			graphql: { linkRepoToProject: { ok: true, data: {} } },
+		});
+		const result = await syncProject("acme", "r", "REPO_NODE", 7, cacheWithRoadmap(), false, true).pipe(
+			Effect.provide(layer),
+			Effect.provide(Logger.layer([])),
+			Effect.runPromise,
+		);
+		expect(result.linkStatus).toBe("linked");
+		expect(result.itemsAdded).toBe(0);
+		expect(graphqlCalls).toEqual(["linkRepoToProject"]);
 	});
 
 	it("reports an error when linking fails and skips backfill", async () => {
-		const gql = GitHubGraphQLTest.empty(); // no linkRepoToProject response seeded -> mutation fails
-		const cache = new Map([
-			[7, { ok: true as const, project: { id: "P1", title: "Roadmap", number: 7, closed: false } }],
-		]);
-		const layer = Layer.merge(gql.layer, baseRest([{ id: 1, node_id: "I1", number: 1, title: "a" }]));
-		const result = await syncProject("acme", "r", "REPO_NODE", 7, cache, false, false).pipe(
+		const graphqlCalls: Array<string> = [];
+		const layer = githubTestLayer({
+			graphqlCalls,
+			graphql: { linkRepoToProject: { ok: false, kind: "rejected" } },
+			paginate: {
+				"GET /repos/{owner}/{repo}/issues": [
+					{ id: 1, node_id: "I1", number: 1, title: "a", state: "open", labels: [], html_url: "u" },
+				],
+			},
+		});
+		const result = await syncProject("acme", "r", "REPO_NODE", 7, cacheWithRoadmap(), false, false).pipe(
 			Effect.provide(layer),
 			Effect.provide(Logger.layer([])),
 			Effect.runPromise,
 		);
 		expect(result.linkStatus).toBe("error");
 		expect(result.itemsAdded).toBe(0);
-		expect(gql.state.mutationCalls.map((c) => c.operation)).toEqual(["linkRepoToProject"]);
+		expect(graphqlCalls).toEqual(["linkRepoToProject"]);
 	});
 });

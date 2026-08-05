@@ -1,36 +1,48 @@
-import { GitHubClientTest, GitHubGraphQLTest } from "@savvy-web/github-action-effects/testing";
-import { Effect, Layer, Logger } from "effect";
+import { Effect, Logger } from "effect";
 import { describe, expect, it } from "vitest";
 import type { DiscoveredRepo, SilkConfig } from "../schemas.js";
+import { githubTestLayer } from "../test-support.js";
 import { processRepos } from "./processRepos.js";
 
 const config: SilkConfig = { labels: [], settings: {} };
-const repos: DiscoveredRepo[] = [
+const repos: ReadonlyArray<DiscoveredRepo> = [
 	{ name: "r1", owner: "acme", fullName: "acme/r1", nodeId: "N1", customProperties: {} },
 	{ name: "r2", owner: "acme", fullName: "acme/r2", nodeId: "N2", customProperties: {} },
 ];
 
+const inputs = {
+	dryRun: false,
+	removeCustomLabels: false,
+	syncSettings: false,
+	syncProjects: false,
+	skipBackfill: false,
+};
+
 describe("processRepos", () => {
-	it("processes every repo and returns one result each", async () => {
-		const layer = Layer.merge(
-			GitHubClientTest.layer({
-				restResponses: new Map([
-					["repos.get", { data: { node_id: "N", name: "r", full_name: "acme/r", owner: { login: "acme" } } }],
-				]),
-				graphqlResponses: new Map(),
-				paginateResponses: new Map([["issues.listLabelsForRepo", [[]]]]),
-				repo: { owner: "acme", repo: "r" },
-			}),
-			GitHubGraphQLTest.empty().layer,
+	it("processes every repo and returns one result each, in order", async () => {
+		const layer = githubTestLayer({
+			request: {
+				"GET /repos/{owner}/{repo}": { node_id: "N", name: "r", full_name: "acme/r", owner: { login: "acme" } },
+			},
+			paginate: { "GET /repos/{owner}/{repo}/labels": [] },
+		});
+		const results = await processRepos(repos, config, new Map(), inputs).pipe(
+			Effect.provide(layer),
+			Effect.provide(Logger.layer([])),
+			Effect.runPromise,
 		);
-		const results = await processRepos(repos, config, new Map(), {
-			dryRun: false,
-			removeCustomLabels: false,
-			syncSettings: false,
-			syncProjects: false,
-			skipBackfill: false,
-		}).pipe(Effect.provide(layer), Effect.provide(Logger.layer([])), Effect.runPromise);
 		expect(results).toHaveLength(2);
 		expect(results.map((r) => r.repo)).toEqual(["r1", "r2"]);
+	});
+
+	it("still returns a result for a repo whose reads all fail", async () => {
+		// Nothing is seeded, so every read fails — and the run does not.
+		const results = await processRepos(repos, config, new Map(), inputs).pipe(
+			Effect.provide(githubTestLayer({})),
+			Effect.provide(Logger.layer([])),
+			Effect.runPromise,
+		);
+		expect(results).toHaveLength(2);
+		expect(results.every((r) => r.success === false)).toBe(true);
 	});
 });

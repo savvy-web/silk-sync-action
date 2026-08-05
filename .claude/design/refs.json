@@ -1,4 +1,11 @@
 {
 	"version": 1,
-	"refs": []
+	"refs": [
+		{
+			"source": "CLAUDE.md",
+			"target": ".claude/design/silk-sync-action/architecture.md",
+			"hash": "3b439659de8f922f83b2bd4d26b88b56aee882dbaf7fe8c4066d5b4281fe73d8",
+			"recordedAt": "2026-08-05"
+		}
+	]
 }

@@ -3,18 +3,17 @@ status: current
 module: silk-sync-action
 category: architecture
 created: 2026-02-09
-updated: 2026-07-17
-last-synced: 2026-07-17
-completeness: 95
+updated: 2026-08-04
+last-synced: 2026-08-04
+completeness: 85
 related: []
 dependencies: []
-implementation-plans:
-  - ../plans/silk-sync-action.md
+implementation-plans: []
 ---
 
 # Silk Sync Action - Architecture
 
-GitHub Action that synchronizes repository settings, labels and GitHub Projects V2 linking across a GitHub organization (or personal account) using a centralized configuration file. Built on Effect **v4** (`effect@4.0.0-beta.98`, resolved via `catalog:effect`) and `@savvy-web/github-action-effects` v3, which supplies the entire service layer (auth, resilient REST/GraphQL clients, state, outputs and reporting). This action contributes only the Silk-specific domain logic on top.
+GitHub Action that synchronizes repository settings, labels and GitHub Projects V2 linking across a GitHub organization (or personal account) using a centralized configuration file. Built on Effect **v4** (`effect@4.0.0-beta.101`, resolved via `catalog:effect`) and the `@effected/*` kit, which supplies the entire service layer (auth, typed REST/GraphQL client, state, outputs and reporting). This action contributes only the Silk-specific domain logic on top.
 
 ## Table of Contents
 
@@ -30,8 +29,9 @@ GitHub Action that synchronizes repository settings, labels and GitHub Projects 
 10. [Error Handling](#error-handling)
 11. [Testing Strategy](#testing-strategy)
 12. [Build Pipeline](#build-pipeline)
-13. [Future Enhancements](#future-enhancements)
-14. [Related Documentation](#related-documentation)
+13. [Known Follow-ups](#known-follow-ups)
+14. [Future Enhancements](#future-enhancements)
+15. [Related Documentation](#related-documentation)
 
 ---
 
@@ -48,11 +48,11 @@ Both modes can be used simultaneously; results are merged and deduplicated by fu
 
 **Key design principles:**
 
-- **Library-supplied service layer:** All cross-cutting concerns — App auth, resilient REST/GraphQL clients, retry/backoff, action state, outputs and step-summary markdown — come from `@savvy-web/github-action-effects`. This action owns only domain logic.
+- **Kit-supplied service layer:** All cross-cutting concerns — App auth, resilient typed REST/GraphQL clients, retry/backoff, action state, outputs, logging and step-summary markdown — come from the `@effected/*` packages. This action owns only domain logic.
 - **Configuration-driven:** All sync behavior derives from a user-provided JSON config file with a published JSON schema generated from the same Effect Schema used for runtime validation.
 - **Dual discovery:** Custom properties and explicit repo lists, combinable as union.
 - **Idempotent:** Running the action multiple times produces the same result.
-- **Resilient by default:** Rate-limit handling (429) and transient 5xx retries/backoff are handled inside the library `GitHubClient`, not by hand-rolled throttling here.
+- **Resilient by default:** Rate-limit handling (429) and transient 5xx retries/backoff live inside the kit's `GitHubClient`, not in hand-rolled throttling here.
 - **Error accumulating:** Per-repo errors do not halt the run; all results are reported.
 
 **When to reference this document:**
@@ -60,32 +60,35 @@ Both modes can be used simultaneously; results are merged and deduplicated by fu
 - When modifying sync workflow logic in `src/`
 - When adding new sync capabilities (settings, labels, projects)
 - When debugging discovery, API or permission issues
-- When understanding how this action wires the library service layer
+- When understanding how this action wires the kit service layer
 
 ---
 
 ## Current State
 
-The action is a compiled TypeScript action built on Effect **v4** (`effect@4.0.0-beta.98`), `@savvy-web/github-action-effects` v3 and `@savvy-web/github-action-builder`. It runs as a three-phase `node24` action (`pre` -> `main` -> `post`) whose lifecycle is driven by the library's `Action.run` entrypoint and `GitHubToken` token lifecycle.
+The action is a compiled TypeScript action built on Effect **v4** (`effect@4.0.0-beta.101`), the `@effected/*` kit (`@effected/github-actions@0.5.1`, `@effected/github@0.2.3`, `@effected/config-file@0.2.1`) and `@savvy-web/github-action-builder`. It runs as a three-phase `node24` action (`pre` -> `main` -> `post`) whose lifecycle is driven by `Action.run` and the `GitHubToken` token lifecycle.
+
+The action previously ran on `@savvy-web/github-action-effects@3`, now deprecated and removed. `GitHubClientLive`, `GitHubGraphQL`, `ConfigLoader`, `ErrorAccumulator`, `Step.groupStep`, `GithubMarkdown` and the `/testing` subpath do not exist in the kit. The port froze the observable contract (inputs, outputs, `action.yml`, the three-phase token lifecycle, the step summary and the per-repo error semantics) — see [the parity contract](../../plans/2026-08-04-effected-port-parity-contract.md) for the frozen behavior plus its nine deliberate deviations, and [the API dossier](../../plans/2026-08-04-effected-port-api-dossier.md) for the signature-level legacy-to-kit symbol map.
 
 **Source is a flat `src/` layout** (no `src/lib/` tree). Key files:
 
 - `src/pre.ts`, `src/main.ts`, `src/post.ts` — the three phase entrypoints, each a thin `Action.run(program, { layer })` shell
 - `src/program.ts` — the main Effect program (the orchestration body of `main`)
-- `src/layers/app.ts` — `PreLive` / `MainLive` / `PostLive` layer compositions
+- `src/layers/app.ts` — `PreLive` / `MainLive` / `PostLive` layer compositions (about ten lines total)
 - `src/schemas.ts` — domain schemas (`SilkConfig`, `DiscoveredRepo`, results) and `ResultsOutput`
 - `src/errors.ts` — domain `TaggedErrorClass`es (`DiscoveryError`, `InvalidInputError`)
 - `src/state.ts` — `StartTimeState` Schema class for cross-phase state
-- `src/inputs.ts` — input parsing into `SilkInputs`
-- `src/github/reads.ts` — typed REST wrappers over the library `GitHubClient`
+- `src/inputs.ts` — input parsing into `SilkInputs` via `ActionInput`
+- `src/github/reads.ts` — route-literal-keyed REST wrappers over the kit `GitHubClient` / `GitHubRepository` / `GitHubIssue`
+- `src/test-support.ts` — `githubTestLayer`, the shared recorded-response GitHub stack (test-only; nothing outside the three entries is bundled)
 - `src/discovery/`, `src/sync/`, `src/reporting/` — the domain logic
 - `action.yml` — action manifest (`node24`, three phases)
-- `action.config.ts` — `github-action-builder` build config (entries + ignore list)
+- `action.config.ts` — `github-action-builder` build config (entries + ignore list + `persistLocal`)
 - `lib/scripts/generate-schema.ts` — build-time JSON Schema generator
 
 ### Phase summary
 
-- **pre (`src/pre.ts` -> `pre`):** Persist start time via `ActionState`. Provision a GitHub App installation token via `GitHubToken.provision`, asserting the token carries at least `REQUIRED_PERMISSIONS` (fail fast otherwise). No config loading here — the pre step runs before `actions/checkout`, so the config file is not yet on disk.
+- **pre (`src/pre.ts` -> `pre`):** Persist start time via `ActionState`, read `app-client-id` / `app-private-key` explicitly, resolve the owner from `ActionEnvironment`, then provision a GitHub App installation token via `GitHubToken.provision`, asserting the token carries at least `REQUIRED_PERMISSIONS` (fail fast otherwise). No config loading here — the pre step runs before `actions/checkout`, so the config file is not yet on disk.
 - **main (`src/main.ts` -> `program`):** Resolve a `GitHubClient` built from the persisted token, parse inputs, load and validate the config, discover repos, resolve projects, process each repo with error accumulation, write a step summary and set outputs.
 - **post (`src/post.ts` -> `post`):** Log total duration (from the persisted start time) and dispose (revoke) the installation token via `GitHubToken.dispose`. Defects are swallowed as warnings so post never fails the job.
 
@@ -93,18 +96,19 @@ The action is a compiled TypeScript action built on Effect **v4** (`effect@4.0.0
 
 ## Rationale
 
-### Decision 1: Build on Effect v4 + `@savvy-web/github-action-effects` v3
+### Decision 1: Build on Effect v4 and the `@effected/*` kit
 
-**Context:** The previous implementation hand-rolled everything against `@actions/*` and `@octokit/*`: custom `Context.Tag` REST/GraphQL services, App auth, rate-limit throttling, `core.saveState` state passing and `NodeRuntime.runMain` entrypoints. That surface was large, error-prone and duplicated across Silk actions.
+**Context:** The action previously consumed `@savvy-web/github-action-effects@3`, which is deprecated and removed. Before that it hand-rolled everything against `@actions/*` and `@octokit/*`.
 
-**Chosen:** Delete the entire bespoke service/auth/throttle layer and consume the library equivalents: `Action.run`, `GitHubClient`, `GitHubGraphQL`, `GitHubToken`, `ConfigLoader`, `ActionState`, `ActionOutputs`, `ErrorAccumulator`, `GithubMarkdown`/`Step`.
+**Chosen:** Depend on three kit packages — `@effected/github-actions` (`Action.run`, `ActionInput`, `ActionOutputs`, `ActionState`, `ActionEnvironment`, `ActionLogger`, `GitHubToken`, `GitHubMarkdown`), `@effected/github` (`GitHubClient` for typed REST + GraphQL, `GitHubApp`, `GitHubRepository`, `GitHubIssue`, `Repo`/`RepoRef`, `GitHubError`) and `@effected/config-file` (`ConfigFile.read` + `JsonCodec`) — plus `effect` and `@effect/platform-node`.
 
 **Why:**
 
-- The library owns resilience (429 + 5xx retry/backoff inside `GitHubClient`), so this action no longer ships a rate-limit module or inter-repo/inter-item sleeps.
-- App auth becomes a three-call lifecycle (`provision` / `client()` / `dispose`) instead of hand-managed Octokit auth and token revocation.
+- The kit owns resilience (429 + 5xx retry/backoff inside `GitHubClient`), so this action ships no rate-limit module and no inter-repo sleeps.
+- App auth is a three-call lifecycle (`provision` / `clientLayer()` / `dispose`) rather than hand-managed Octokit auth and token revocation.
 - State is Schema-typed (`ActionState.save` / `getOptional`) instead of stringly-typed `core.saveState`.
-- Runtime dependencies are just `effect`, `@effect/platform-node` and the library. On the Effect v4 upgrade the separate `@effect/platform` package was dropped — it dissolved into core `effect` in v4 (e.g. `FetchHttpClient` now lives at `effect/unstable/http`), so only the Node-specific `@effect/platform-node` remains.
+- `Action.run` composes `ActionRuntime.layer` internally, so the platform services, HTTP client and the workflow-command `Logger` arrive for free. That collapsed `src/layers/app.ts` from 27 lines of hand-composed platform wiring to about ten lines of GitHub-specific layers.
+- There are no direct `@actions/*` or `@octokit/*` dependencies — octokit is owned by `@effected/github`.
 
 ### Decision 2: Dual discovery (org + personal)
 
@@ -112,25 +116,36 @@ Support both org discovery (via custom properties) and explicit repo lists. Org 
 
 ### Decision 3: User-provided config with a generated JSON schema
 
-Label definitions and repository settings come from a user-provided JSON config file. The published `silk.config.schema.json` is generated from the `SilkConfig` Effect Schema at build time (`lib/scripts/generate-schema.ts`), so IDE autocompletion and runtime validation share one source of truth. Under Effect v4 the generator is `JsonSchema.toDocumentDraft07(Schema.toJsonSchemaDocument(SilkConfig))`: `toJsonSchemaDocument` emits a 2020-12 `Document`, and `toDocumentDraft07` rewrites it into a draft-07 doc with a `definitions` map plus a root `$ref` (the script then splices in `$schema`/`title`/`description` metadata). Note the v4 emitter's shape: optional/nullable fields render as `anyOf: [T, null]` and Schema checks (min/max/pattern) render as `allOf` entries. `SilkConfig` carries an optional `$schema` field so users can reference the schema in their config without a validation error.
+Label definitions and repository settings come from a user-provided JSON config file. The published `silk.config.schema.json` is generated from the `SilkConfig` Effect Schema at build time (`lib/scripts/generate-schema.ts`), so IDE autocompletion and runtime validation share one source of truth. Under Effect v4 the generator is `JsonSchema.toDocumentDraft07(Schema.toJsonSchemaDocument(SilkConfig))`: `toJsonSchemaDocument` emits a 2020-12 `Document`, and `toDocumentDraft07` rewrites it into a draft-07 doc with a `definitions` map plus a root `$ref` (the script then splices in `$schema`/`title`/`description` metadata). Note the v4 emitter's shape: optional/nullable fields render as `anyOf: [T, null]` and Schema checks (min/max/pattern) render as `allOf` entries. `SilkConfig` carries an optional `$schema` field so users can reference the schema in their config without a validation error. The generated file was byte-frozen across the `@effected` port — `src/schemas.ts` uses core `effect` only and did not change.
 
 ### Decision 4: Three-phase execution via the `GitHubToken` lifecycle
 
-The pre/main/post split is preserved, but auth is now the library token lifecycle rather than hand-rolled Octokit. `pre` provisions the token and verifies permissions before any sync work; `main` builds its `GitHubClient` from the persisted token; `post` disposes it for hygiene even if `main` fails. Config loading lives in `main` because `pre` runs before checkout.
+The pre/main/post split is preserved. `pre` provisions the token and verifies permissions before any sync work; `main` builds its `GitHubClient` from the persisted token; `post` disposes it for hygiene even if `main` fails. Config loading lives in `main` because `pre` runs before checkout.
 
-### Decision 5: `octokit.request` for the custom-properties endpoint
+The kit's `provision` takes the App credentials as arguments rather than reading them itself, so `src/pre.ts` reads `app-client-id` and `app-private-key` explicitly (under exactly the names `action.yml` declares) and passes `owner` from `ActionEnvironment` so an App installed in more than one account still resolves the right installation. The legacy `permissions` option is now `required`.
 
-The typed Octokit REST methods still do not cover `GET /orgs/{org}/properties/values`. `src/github/reads.ts` calls it through `GitHubClient.paginate` using `octokit.request(...)` with a locally-typed response row, then normalizes each row into the `OrgRepoProperty` shape. This keeps the typing gap isolated to one wrapper while still benefiting from the library client's pagination and resilience.
+### Decision 5: The route literal is the key
 
-### Decision 6: Stable operation-name keys for the library client
+Every REST call is `client.request(<route>, params)` or `client.paginate(<route>, params)` with a route literal such as `"GET /repos/{owner}/{repo}"`. The literal types both the params and the response, so there are no casts, no `octokit.request()` escape hatch and no stringly-typed `operation` names. `GET /orgs/{org}/properties/values` *is* in octokit's paginating route map — the old "typing gap" note was stale. Its one genuine gap is `repository_node_id`, which GitHub returns on the wire but octokit's generated type omits; `src/github/reads.ts` recovers it with a small `Schema.decodeUnknownOption` so the read stays total and cast-free.
 
-Every REST/GraphQL call passes a stable operation name (e.g. `"issues.listLabelsForRepo"`, `"resolveProject"`) as the first argument to `GitHubClient.rest`/`paginate` and `GitHubGraphQL.query`/`mutation`. The library uses these keys for logging, retry bookkeeping and step grouping, so they must stay stable and descriptive.
+### Decision 6: `Repo` is ambient, resolved per call
+
+Every wrapper in `src/github/reads.ts` reads `yield* Repo` rather than accepting an `(owner, repo)` pair. `Repo.provide(new RepoRef(...))` is applied at two boundaries only: once at `syncRepo`'s own boundary, so the whole per-repo chain acts on that repository without threading arguments, and once per candidate name in `src/discovery/explicit.ts`, which validates repositories that are not yet the ambient one. `Repo` is never provided as a layer. Some helpers (`syncLabels`, `syncProject`) still take `owner`/`repo` strings, but only for log and result text — their API calls resolve `Repo`.
+
+### Decision 7: Branch on `GitHubError.kind`, never on message text
+
+The kit collapses REST failures into one `GitHubError` with a `kind` discriminant (`notFound`, `alreadyExists`, `rejected`, `unauthorized`, `rateLimited`, `transport`, `decode`) and GraphQL failures into `GitHubGraphQLError` with the same discriminant. "Already linked" / "already exists" in `src/sync/projects.ts` is detected as `e.kind === "alreadyExists"`, replacing a lowercase grep of the rendered error message. Errors carry `operation`, `reason` and (for REST) an optional `status`, which `syncSettings` uses to special-case 422 org-policy rejections.
+
+### Decision 8: `Effect.partition` for per-repo accumulation
+
+The kit ships no `ErrorAccumulator` successor, deliberately. `src/sync/processRepos.ts` uses `Effect.partition`, which runs every effect and never fails. Because `syncRepo`'s error channel is `never` by contract, the failure half is statically empty and the success half is every result; the destructure documents that rather than hiding it.
 
 ### Constraints
 
 - **Custom properties availability:** Only GitHub Organizations expose custom properties, and only an org admin can configure them. Mitigated by the explicit-repo discovery fallback.
-- **Required App permissions:** Declared once in `REQUIRED_PERMISSIONS` in `src/pre.ts` and asserted by `GitHubToken.provision`. Currently `administration: write`, `issues: write`, `organization_custom_properties: read`, `organization_projects: write`.
-- **Rate limits:** Handled by the library `GitHubClient` (automatic 429/5xx retry + backoff). This action does not implement its own throttling.
+- **Required App permissions:** Declared once in `REQUIRED_PERMISSIONS` in `src/pre.ts` and asserted by `GitHubToken.provision` via its `required` option. Currently `administration: write`, `issues: write`, `organization_custom_properties: read`, `organization_projects: write`.
+- **Rate limits:** Handled by the kit's `GitHubClient` (automatic 429/5xx retry + backoff). This action does not implement its own throttling.
+- **Layers passed to `Action.run` must have error channel `never`.** `ActionRunOptions.layer` is `Layer.Layer<R, never, ActionServices>`, which is why `GitHubToken.clientLayer()` carries a `Layer.orDie`: a missing or expired persisted token is a failure of the `pre` phase, not something `main` can recover from.
 
 ---
 
@@ -148,14 +163,14 @@ runs:
   post: dist/post.js
 ```
 
-Each entrypoint is a thin shell: `pre.ts` and `post.ts` guard on `process.env.GITHUB_ACTIONS` and call `Action.run(<program>, { layer })`; `main.ts` calls `Action.run(program, { layer: MainLive })` unconditionally. `Action.run` (from the library) is the replacement for the former `NodeRuntime.runMain`.
+Each entrypoint is a thin shell guarded on `process.env.GITHUB_ACTIONS` that calls `Action.run(<program>, { layer })`. `Action.run` composes `ActionRuntime.layer` internally, supplying `ActionEnvironment`, `ActionLogger`, `ActionOutputs`, `ActionState`, the Node platform services and an `HttpClient`.
 
 ### Layer composition (`src/layers/app.ts`)
 
-This is the load-bearing wiring between the action and the library:
+This is the load-bearing wiring between the action and the kit, and it is now small:
 
-- **`PreLive` / `PostLive`:** `GitHubAppLive` (provided `OctokitAuthAppLive` + `FetchHttpClient.layer`, now imported from `effect/unstable/http`) merged with `NodeFileSystem.layer` (still from `@effect/platform-node`). Supplies App auth (for token provision/dispose) plus a filesystem for `ActionState`.
-- **`MainLive`:** a `GitHubClient` built from the persisted installation token via `GitHubToken.client()` (provided `ActionStateLive`, `Layer.orDie`), a `GitHubGraphQL` layered on that client, and `ConfigLoaderLive`. Both `ActionStateLive` and `ConfigLoaderLive` are provided `NodeServices.layer` (the Effect v4 replacement for `NodeContext.layer`) for their filesystem/platform needs. This is the only place the persisted token is turned back into an authenticated client.
+- **`PreLive` / `PostLive`:** `GitHubApp.layer` — nothing else. The layer has no requirements; it owns its own octokit and JWT signing. Everything else `pre`/`post` touch comes from `ActionRuntime.layer`.
+- **`MainLive`:** `GitHubToken.clientLayer().pipe(Layer.orDie)` for the `GitHubClient` built from the token `pre` persisted, plus `GitHubRepository.layer` and `GitHubIssue.layer` provided over that client. This is the only place the persisted token is turned back into an authenticated client.
 
 ### Action contract (`action.yml`)
 
@@ -163,7 +178,7 @@ This is the load-bearing wiring between the action and the library:
 
 **Outputs:** `results` (full JSON, shape = `ResultsOutput` in `src/schemas.ts`) plus scalar convenience outputs `success`, `repos-total`, `repos-succeeded`, `repos-failed`.
 
-This contract is a **breaking change for 1.0.0** relative to the original action: `app-id` became `app-client-id`, the `log-level` and `skip-token-revoke` inputs were removed (logging is the library's concern; token revocation is unconditional via `GitHubToken.dispose`), and the scalar outputs were added.
+This contract was a **breaking change for 1.0.0** relative to the original action: `app-id` became `app-client-id`, the `log-level` and `skip-token-revoke` inputs were removed (logging is the kit's concern; token revocation is unconditional via `GitHubToken.dispose`), and the scalar outputs were added. The `@effected` port kept `action.yml` byte-frozen.
 
 ```yaml
 # Organization with custom properties
@@ -201,22 +216,23 @@ src/
 +-- schemas.ts              # SilkConfig, domain types, ResultsOutput
 +-- errors.ts               # DiscoveryError, InvalidInputError (TaggedErrorClass)
 +-- state.ts                # StartTimeState (ActionState Schema class)
-+-- inputs.ts               # parseInputs -> SilkInputs
++-- inputs.ts               # parseInputs -> SilkInputs (ActionInput)
++-- test-support.ts         # githubTestLayer: recorded-response GitHub stack (test-only)
 +-- github/
-|   +-- reads.ts            # typed REST wrappers over GitHubClient (incl. custom-properties via octokit.request)
+|   +-- reads.ts            # route-literal REST wrappers, resolved against the ambient Repo
 +-- discovery/
 |   +-- index.ts            # discoverRepos: union + dedupe
 |   +-- customProperties.ts # discoverByCustomProperties (AND-match)
-|   +-- explicit.ts         # discoverByExplicitList
+|   +-- explicit.ts         # discoverByExplicitList (Repo.provide per candidate)
 +-- sync/
-|   +-- processRepos.ts     # ErrorAccumulator.forEachAccumulate over repos
-|   +-- syncRepo.ts         # per-repo orchestration (labels -> settings -> project)
+|   +-- processRepos.ts     # Effect.partition over repos
+|   +-- syncRepo.ts         # per-repo orchestration (labels -> settings -> project), Repo.provide boundary
 |   +-- labels.ts           # syncLabels
 |   +-- settings.ts         # syncSettings (SYNCABLE_KEYS diff)
 |   +-- projects.ts         # resolveProjects (cache) + syncProject (link + backfill)
 +-- reporting/
     +-- stats.ts            # aggregateStats -> SyncStats
-    +-- summary.ts          # buildSummaryMarkdown (GithubMarkdown)
+    +-- summary.ts          # buildSummaryMarkdown (GitHubMarkdown)
 lib/
 +-- scripts/
     +-- generate-schema.ts  # build-time JSON Schema generation from SilkConfig
@@ -224,40 +240,53 @@ lib/
 
 Each source file has a co-located `*.test.ts`. The boundaries worth knowing:
 
-- **Discovery** (`src/discovery/`) produces `DiscoveredRepo[]`. `customProperties.ts` matches AND/case-insensitively over the rows returned by `listOrgRepoProperties`; `explicit.ts` validates each name via `getRepo`; `index.ts` unions and dedupes by lowercased `fullName` (org properties win on conflict) and fails with `DiscoveryError` when nothing is found.
-- **Sync** (`src/sync/`) is a strict delegation chain: `processRepos` -> `ErrorAccumulator.forEachAccumulate` -> `syncRepo` -> `syncLabels` / `syncSettings` / `syncProject`. `syncRepo` never fails (it captures errors into `SyncErrorRecord[]`), so the accumulator's `failures` is always empty and `successes` is every result. See `src/sync/syncRepo.ts` for the exact ordering and the `project-tracking` / `project-number` custom-property gate on project sync.
-- **Projects** (`src/sync/projects.ts`) is two-phase: `resolveProjects` resolves every unique project number once into a `ProjectCache` (`Map<number, ProjectCacheEntry>`, closed/missing projects cached as errors), then `syncProject` reads from that cache to link the repo and optionally backfill open issues/PRs. "Already linked" / "already exists" are detected from the GraphQL error text (`isAlreadyExists`) and treated as success, not failure.
-- **Reporting** (`src/reporting/`) is pure: `aggregateStats` folds `RepoSyncResult[]` into `SyncStats`, and `buildSummaryMarkdown` renders that via the library `GithubMarkdown` helpers. The same `SyncStats` feeds both the step summary and the `results` output in `program.ts`.
+- **Discovery** (`src/discovery/`) produces `DiscoveredRepo[]`. `customProperties.ts` matches AND/case-insensitively over the rows returned by `listOrgRepoProperties`; `explicit.ts` validates each name via `getRepo` under a per-candidate `Repo.provide`; `index.ts` unions and dedupes by lowercased `fullName` (org properties win on conflict) and fails with `DiscoveryError` when nothing is found.
+- **Sync** (`src/sync/`) is a strict delegation chain: `processRepos` -> `Effect.partition` -> `syncRepo` -> `syncLabels` / `syncSettings` / `syncProject`. `syncRepo` never fails (it captures errors into `SyncErrorRecord[]`) and provides `Repo` once for the whole chain. See `src/sync/syncRepo.ts` for the exact ordering and the `project-tracking` / `project-number` custom-property gate on project sync.
+- **Projects** (`src/sync/projects.ts`) is two-phase: `resolveProjects` resolves every unique project number once into a `ProjectCache` (`Map<number, ProjectCacheEntry>`, closed/missing projects cached as errors), then `syncProject` reads from that cache to link the repo and optionally backfill open issues/PRs. GraphQL operations are `GraphQLDocument.make({ name, document, response })` values with Schema-typed responses, sent through `client.graphql`.
+- **Reporting** (`src/reporting/`) is pure: `aggregateStats` folds `RepoSyncResult[]` into `SyncStats`, and `buildSummaryMarkdown` renders that via the kit's `GitHubMarkdown` helpers. The same `SyncStats` feeds both the step summary and the `results` output in `program.ts`.
 
 ---
 
 ## Schemas and Types
 
-Domain schemas live in `src/schemas.ts`; domain errors in `src/errors.ts`. Types use `Schema.Struct` with `typeof X.Type` inference; errors use `Schema.TaggedErrorClass` with a custom `get message()`. The schemas follow Effect v4 idioms: refinements are attached via `.check(...)` with predicate combinators (`Schema.isMinLength`, `Schema.isMaxLength`, `Schema.isPattern`, `Schema.isGreaterThan`) rather than the v3 `.pipe(Schema.minLength/...)` filters, and closed enums use `Schema.Literals([...])` (array form) instead of the variadic `Schema.Literal(a, b, c)`.
+Domain schemas live in `src/schemas.ts`; domain errors in `src/errors.ts`. Types use `Schema.Struct` with `typeof X.Type` inference; errors use `Schema.TaggedErrorClass` with a custom `get message()`. The schemas follow Effect v4 idioms: refinements are attached via `.check(...)` with predicate combinators (`Schema.isMinLength`, `Schema.isMaxLength`, `Schema.isPattern`) rather than the v3 `.pipe(Schema.minLength/...)` filters, and closed enums use `Schema.Literals([...])` (array form) instead of the variadic `Schema.Literal(a, b, c)`. This file depends on core `effect` only and was untouched by the `@effected` port.
 
-The cardinal config type is `SilkConfig` (`{ $schema?, labels: LabelDefinition[], settings: RepositorySettings }`). It is the contract for both the user config file and the generated JSON schema, so its shape must stay stable. `RepositorySettings` enumerates the syncable keys (mirrored by `SYNCABLE_KEYS` in `src/sync/settings.ts`).
+The cardinal config type is `SilkConfig` (`{ $schema?, labels: LabelDefinition[], settings: RepositorySettings }`). It is the contract for both the user config file and the generated JSON schema, so its shape must stay stable. `RepositorySettings` enumerates the syncable keys (mirrored by `SYNCABLE_KEYS` in `src/sync/settings.ts`). Note that `@effected/github` also exports a type named `RepositorySettings` (the whole `GET /repos/{owner}/{repo}` payload); the local one is the config vocabulary and the kit's is deliberately not imported.
 
 `DiscoveredRepo` stores all custom properties as a flat `Record<string, string>` rather than named boolean fields; project tracking is decided at sync time by reading `project-tracking` / `project-number` from that map. `RepoSyncResult` is the per-repo outcome and `ResultsOutput` is the JSON output contract (the Schema passed to `ActionOutputs.setJson`). See `src/schemas.ts` for full field lists; do not enumerate them here.
 
-Raw GitHub REST response shapes (`GitHubRepo`, `GitHubLabel`, `GitHubIssue`, `OrgRepoProperty`) are plain TypeScript interfaces in `src/github/reads.ts`, not Effect schemas, since they describe Octokit responses rather than validated domain data.
+Raw GitHub response shapes used locally (`RepoSnapshot`, `RepoLabel`, `OrgRepoProperty`) are plain TypeScript interfaces in `src/github/reads.ts`, not Effect schemas, since they describe API responses rather than validated domain data. `RepoSnapshot` is a structural subset of the kit's repository payload narrowed to the keys `sync/settings.ts` compares plus the identity fields discovery needs, and writes go through the kit's `RepositoryPatch` so a key the endpoint does not accept is a compile error.
 
-Domain errors are only `InvalidInputError` (fatal, raised during input parsing) and `DiscoveryError` (fatal, raised when no repos are discovered). All transport-level failures surface as the library's `GitHubClientError` / `GitHubGraphQLError`, which carry a `reason` string and (for REST) a `status` code used in `syncSettings` to special-case 422 org-policy rejections.
+Domain errors are only `InvalidInputError` (fatal, raised during input parsing) and `DiscoveryError` (fatal, raised when no repos are discovered). Transport-level failures surface as the kit's `GitHubError` / `GitHubGraphQLError`, and config-load failures as `ConfigReadError`.
 
 ---
 
 ## Service Layer
 
-The service layer is entirely supplied by `@savvy-web/github-action-effects`. This action defines no services of its own; it composes library layers in `src/layers/app.ts` and consumes the library services directly. Under Effect v4 those library services are class-based `Context.Service` definitions (each paired with a companion `*Shape` interface), not the v3 `Context.Tag` pattern — but this action only references them, so the distinction is transparent at the call sites below.
+The service layer is entirely supplied by the `@effected/*` kit. This action defines no services of its own; it composes kit layers in `src/layers/app.ts` and consumes kit services directly. They are class-based `Context.Service` definitions with companion `*Shape` interfaces.
 
-- **`Action.run`** — entrypoint runner for each phase (replaces `NodeRuntime.runMain`).
-- **`GitHubToken`** — App-token lifecycle: `provision({ permissions })` in `pre`, `client()` (a `Layer`) in `MainLive`, `dispose()` in `post`. Replaces hand-rolled `@octokit/auth-app` auth and `DELETE /installation/token` revocation.
-- **`GitHubClient`** — resilient REST client with `rest(opName, fn)` for single calls and `paginate<T>(opName, fn)` for paged calls; automatic 429/5xx retry + backoff. Replaces the old `GitHubRestClient` Tag and the entire `rate-limit/` module. `src/github/reads.ts` wraps it into typed helpers (`getRepo`, `listLabels`, `createLabel`, `updateLabel`, `deleteLabel`, `updateRepo`, `listOpenIssues`, `listOrgRepoProperties`).
-- **`GitHubGraphQL`** — `query`/`mutation` for Projects V2; layered on `GitHubClient`. Replaces the old `GitHubGraphQLClient` Tag. Used directly in `src/sync/projects.ts`.
-- **`ConfigLoader`** — `loadJson(path, Schema)` reads and validates the user config in `program.ts`. Replaces the old `src/lib/config/load.ts`.
-- **`ActionState`** — Schema-typed cross-phase state (`save` / `getOptional`), used for `StartTimeState`. Replaces `core.saveState`/`getState`.
+From `@effected/github-actions`:
+
+- **`Action.run`** — entrypoint runner for each phase. Composes `ActionRuntime.layer` internally and never throws; it sets `process.exitCode`.
+- **`GitHubToken`** — App-token lifecycle: `provision({ appId, privateKey, owner, required })` in `pre`, `clientLayer()` (a `Layer`, `orDie`d) in `MainLive`, `dispose()` in `post`.
+- **`ActionInput`** — `string`, `redacted`, `boolean`, `lines`, `list`; owns the `INPUT_` name derivation. Used in `src/inputs.ts` and `src/pre.ts`.
 - **`ActionOutputs`** — `set`, `setJson(name, value, Schema)`, `summary(markdown)`, `setFailed`. Used in `program.ts`.
-- **`ErrorAccumulator.forEachAccumulate`** — sequential per-repo iteration with success/failure accumulation, used in `src/sync/processRepos.ts`.
-- **`GithubMarkdown` / `Step`** — `GithubMarkdown` builds the summary tables (`src/reporting/summary.ts`); `Step.groupStep` wraps discovery and sync into collapsible step groups in `program.ts`.
+- **`ActionState`** — Schema-typed cross-phase state (`save` / `getOptional`), used for `StartTimeState`.
+- **`ActionEnvironment`** — the one reader of `process.env`; supplies `repositoryOwner` to both `pre` and `program`.
+- **`ActionLogger`** — `group(name, effect)` and `withStep(name, effect)`, composed together in `program.ts` where the legacy `Step.groupStep` used to be.
+- **`GitHubMarkdown`** — summary tables and headings in `src/reporting/summary.ts`.
+
+From `@effected/github`:
+
+- **`GitHubApp`** — `GitHubApp.layer` for `pre`/`post`; owns its octokit and JWT signing.
+- **`GitHubClient`** — `request(route, params)` and `paginate(route, params)` for REST, `graphql(document, vars)` for GraphQL, with automatic 429/5xx retry and backoff. Wrapped into typed helpers in `src/github/reads.ts`.
+- **`GitHubRepository` / `GitHubIssue`** — resource services over the client (`updateSettings`, `list({ state })`), both `Repo`-scoped.
+- **`Repo` / `RepoRef`** — the ambient repository, provided with `Repo.provide(ref)` rather than as a layer.
+- **`GitHubError` / `GitHubGraphQLError`** — the two error surfaces, discriminated by `kind`.
+
+From `@effected/config-file`:
+
+- **`ConfigFile.read(path, { schema, codec: JsonCodec })`** — reads and validates the user config in `program.ts`. Only `FileSystem` is required, and `ActionRuntime.layer` already supplies it.
 
 ---
 
@@ -266,23 +295,28 @@ The service layer is entirely supplied by `@savvy-web/github-action-effects`. Th
 ```text
 PRE (Action.run(pre, { layer: PreLive })):
 [ActionState.save startTime <- StartTimeState]
-[GitHubToken.provision({ permissions: REQUIRED_PERMISSIONS })]
+[ActionInput.string "app-client-id" + ActionInput.redacted "app-private-key"]
+[ActionEnvironment.github.repositoryOwner -> owner]
+[GitHubToken.provision({ appId, privateKey, owner, required: REQUIRED_PERMISSIONS })]
    -> persists installation token; asserts permissions; fails fast otherwise
    (no config load -- runs before actions/checkout)
 
 MAIN (Action.run(program, { layer: MainLive })):
-[GitHubClient from persisted token]  [ActionOutputs]
+[GitHubClient from persisted token]  [ActionOutputs]  [ActionLogger]
       |
       v
 [parseInputs] -> SilkInputs            (InvalidInputError if no discovery method)
       |
       v
-[ConfigLoader.loadJson(configFile, SilkConfig)] -> SilkConfig
+[ActionEnvironment.github.repositoryOwner] -> org
       |
       v
-[Step.groupStep "Discover repositories": discoverRepos(org, inputs)]
-  +-- custom properties: listOrgRepoProperties (paginate via octokit.request) -> AND/case-insensitive match
-  +-- explicit repos:    getRepo per name (validate, capture node_id)
+[ConfigFile.read(configFile, { schema: SilkConfig, codec: JsonCodec })] -> SilkConfig
+      |
+      v
+[logger.group + logger.withStep "Discover repositories": discoverRepos(org, inputs)]
+  +-- custom properties: paginate "GET /orgs/{org}/properties/values" -> AND/case-insensitive match
+  +-- explicit repos:    getRepo per name under Repo.provide (validate, capture node_id)
   +-- union + dedupe by lowercased fullName (org props win) -> DiscoveredRepo[]
       |
       v
@@ -292,9 +326,9 @@ MAIN (Action.run(program, { layer: MainLive })):
 [resolveProjects(org, numbers)] -> ProjectCache  (GraphQL; closed/missing cached as errors)
       |
       v
-[Step.groupStep "Sync repositories": processRepos(...)]
-  ErrorAccumulator.forEachAccumulate over repos (sequential):
-    syncRepo:
+[logger.group + logger.withStep "Sync repositories": processRepos(...)]
+  Effect.partition over repos (sequential):
+    syncRepo, under Repo.provide(RepoRef):
       +-- getRepo (node_id + current settings; failure captured, non-fatal)
       +-- syncLabels   (create / update / remove-custom / unchanged)
       +-- syncSettings (diff SYNCABLE_KEYS, PATCH changed keys; 422 -> warning) [if sync-settings]
@@ -313,7 +347,7 @@ POST (Action.run(post, { layer: PostLive })):
 [GitHubToken.dispose()] -> revoke installation token (warn on failure; defects swallowed)
 ```
 
-Resilience (rate-limit/429 handling, 5xx retry, backoff) is internal to `GitHubClient` and `GitHubGraphQL`; there is no separate rate-limit flow in this action.
+Resilience (rate-limit/429 handling, 5xx retry, backoff) is internal to `GitHubClient`; there is no separate rate-limit flow in this action.
 
 ---
 
@@ -321,11 +355,11 @@ Resilience (rate-limit/429 handling, 5xx retry, backoff) is internal to `GitHubC
 
 ### GitHub REST API
 
-Authentication is a GitHub App installation token provisioned by `GitHubToken` in `pre` and turned into an authenticated `GitHubClient` in `MainLive`. Endpoints used (all via `src/github/reads.ts`): repo get/update, label list/create/update/delete, open issues list and `GET /orgs/{org}/properties/values` (via `octokit.request` through `paginate`). See `src/github/reads.ts` for the exact operation-name keys.
+Authentication is a GitHub App installation token provisioned by `GitHubToken` in `pre` and turned into an authenticated `GitHubClient` in `MainLive`. Endpoints used (all via `src/github/reads.ts`): repo get/update, label list/create/update/delete, open issues list and `GET /orgs/{org}/properties/values`. See `src/github/reads.ts` for the exact route literals.
 
 ### GitHub GraphQL API
 
-Three Projects V2 operations in `src/sync/projects.ts`: `resolveProject` (query), `linkRepoToProject` and `addItemToProject` (mutations), all via `GitHubGraphQL`.
+Three Projects V2 documents in `src/sync/projects.ts`: `resolveProject` (query), `linkRepoToProject` and `addItemToProject` (mutations), each a `GraphQLDocument` with a Schema-typed response, sent through `GitHubClient.graphql`.
 
 ### Required App permissions
 
@@ -335,12 +369,14 @@ Declared in `REQUIRED_PERMISSIONS` (`src/pre.ts`) and enforced at provision time
 
 | Package | Purpose |
 | :------ | :------ |
-| `effect` (v4, `4.0.0-beta.98` via `catalog:effect`) | Schema, Layer, Effect (core Effect-TS); also `FetchHttpClient` (`effect/unstable/http`) and `JsonSchema` — all folded into core in v4 |
-| `@effect/platform-node` | `NodeServices` and `NodeFileSystem` for layer wiring (the standalone `@effect/platform` package was dropped in v4) |
-| `@savvy-web/github-action-effects` (v3) | Entrypoints, auth, REST/GraphQL clients, state, outputs, reporting (the service layer) |
+| `effect` (v4, `4.0.0-beta.101` via `catalog:effect`) | Schema, Layer, Effect (core Effect-TS); also `JsonSchema` and the HTTP client, all folded into core in v4 |
+| `@effect/platform-node` | Node platform services; a required peer of `@effected/github-actions` kept as a direct dependency |
+| `@effected/github-actions` (0.5.1) | `Action.run` / `ActionRuntime`, inputs, outputs, state, environment, logger, `GitHubToken`, `GitHubMarkdown` |
+| `@effected/github` (0.2.3) | Typed REST + GraphQL `GitHubClient`, `GitHubApp`, `GitHubRepository`, `GitHubIssue`, `Repo`/`RepoRef`, `GitHubError` |
+| `@effected/config-file` (0.2.1) | `ConfigFile.read` + `JsonCodec` for the user config |
 | `@savvy-web/github-action-builder` (dev) | rsbuild/rspack bundling + `action.yml` validation |
 
-The previous direct dependencies on `@actions/core`, `@actions/github`, `@octokit/auth-app`, `@octokit/request` and `@octokit/rest` are gone; those concerns now live behind the library.
+There are no direct `@actions/*` or `@octokit/*` dependencies; octokit is owned by `@effected/github`.
 
 ---
 
@@ -348,18 +384,28 @@ The previous direct dependencies on `@actions/core`, `@actions/github`, `@octoki
 
 Two-tier strategy:
 
-- **Fatal (fail the step):** `InvalidInputError` (bad/missing discovery inputs), config-load failures (surfaced by `ConfigLoader`) and `DiscoveryError` (no repos found). These propagate to the top-level `Effect.catchAll` in `program.ts`, which calls `ActionOutputs.setFailed`.
-- **Non-fatal (accumulate and continue):** every per-repo operation. `syncRepo` wraps the repo fetch, label, settings and project work so failures are captured into `SyncErrorRecord[]` rather than thrown. `syncSettings` special-cases REST `status === 422` (org-enforced policy) as a warning. `processRepos` runs repos sequentially through `ErrorAccumulator.forEachAccumulate`; because `syncRepo` never fails, the accumulator's `successes` is the full result list.
+- **Fatal (fail the step):** `InvalidInputError` (bad/missing discovery inputs), `ConfigReadError` (config load/validate failure) and `DiscoveryError` (no repos found). These propagate to the top-level `Effect.catch` in `program.ts`, which calls `ActionOutputs.setFailed("Sync failed: <message>")` and then succeeds — `Action.run` derives the exit code from `setFailed`.
+- **Non-fatal (accumulate and continue):** every per-repo operation. `syncRepo` wraps the repo fetch, label, settings and project work so failures are captured into `SyncErrorRecord[]` rather than thrown. `syncSettings` special-cases REST `status === 422` (org-enforced policy) as a warning. `processRepos` runs repos sequentially through `Effect.partition`; because `syncRepo`'s error channel is `never`, the failure half is statically empty.
+
+Error branching is always on the `kind` discriminant of `GitHubError` / `GitHubGraphQLError` (for example `"alreadyExists"` in `src/sync/projects.ts`), never on rendered message text.
 
 ### Dry-run mode
 
-When `dry-run: true`, reads run normally but every write is skipped; `syncLabels`/`syncSettings` still compute and record the changes that would be made, project link status becomes `"dry-run"`, and the summary header switches to "Silk Sync (dry-run)". Statistics reflect the would-be changes.
+When `dry-run: true`, reads run normally but every write is skipped; `syncLabels`/`syncSettings` still compute and record the changes that would be made, project link status becomes `"dry-run"`, and the summary header switches to "Silk Sync (dry-run)". Statistics reflect the would-be changes; `aggregateStats` counts a `"dry-run"` link as linked.
 
 ---
 
 ## Testing Strategy
 
-Vitest with v8 coverage, `pool: "forks"` for Effect-TS compatibility. Every `src` file has a co-located `*.test.ts`. Tests provide the library service tags via Effect layers and run programs with `Effect.runPromise`; mock the library `GitHubClient` / `GitHubGraphQL` / `ActionState` / `ActionOutputs` tags rather than the deleted bespoke services. See the `*.test.ts` files next to each module for the exact fixtures.
+Vitest with v8 coverage and `pool: "forks"` for Effect-TS compatibility. Every `src` file has a co-located `*.test.ts`; the suite is 89 tests as of the `@effected` port.
+
+The runner is **plain vitest** (`describe`/`it`/`expect` plus `Effect.runPromise`), **not `@effect/vitest`**. That is a deliberate deferral, not an oversight: the pre-existing suite was the port's only characterization gate, and converting the runner at the same time as the service doubles would have installed a virtual `TestClock` across the whole suite while the thing being verified was the port itself. Moving to `@effect/vitest` is [known follow-up work](#known-follow-ups).
+
+Test doubles come from the services themselves — **there is no `/testing` subpath**. Each service ships `makeTest(overrides?)` / `layerTest(overrides?)`, and an unstubbed member dies naming itself, which is what makes a partial double proof that a test touches nothing it did not stub: `ActionOutputs.layerTest`, `ActionState.layerTest`, `ActionLogger.layerTest`, `ActionEnvironment.layerTest`, `GitHubApp.layerTest`.
+
+`src/test-support.ts` supplies `githubTestLayer`, the shared GitHub stack: recorded responses keyed by route literal through `GitHubClient.layerFixture` (which pages them for real, through the same engine the live client uses), the real `GitHubRepository` / `GitHubIssue` layers over it, and a `Repo`. Only the transport is canned. GraphQL is scripted by document name on top of the fixture, because an unscripted document in `layerFixture` is a *defect* while every GraphQL failure path in `src/sync/projects.ts` is a recovered *failure* — a defect is not catchable by `Effect.catch`, so a fixture-only double would make those paths structurally untestable.
+
+Two further conventions: supply inputs with `ActionInput.layer({ "input-name": "value" })` rather than a bare `ConfigProvider` keyed by the plain name (`ActionInput` owns the `INPUT_` derivation; a provider that does not is a silent false green), and exercise `ConfigFile.read` against a real temp file through `NodeFileSystem.layer`, since the claim there is about the filesystem.
 
 ---
 
@@ -371,15 +417,26 @@ Vitest with v8 coverage, `pool: "forks"` for Effect-TS compatibility. Every `src
 types:check -> generate:schema -> build:prod
 ```
 
-- **`types:check`** — `tsgo --noEmit`.
+- **`types:check`** — `tsc --noEmit`.
 - **`generate:schema`** — runs `lib/scripts/generate-schema.ts` (`JsonSchema.toDocumentDraft07(Schema.toJsonSchemaDocument(SilkConfig))` from `src/schemas.ts`) to produce a draft-07 `silk.config.schema.json`, then `biome format --write`.
 - **`build:prod`** — `github-action-builder build`, driven by `action.config.ts`.
 
 ### `action.config.ts`
 
-Defines the three build entries (`pre`/`main`/`post`), `minify: true`, and an `ignore` list (`xmlbuilder2`, `libxmljs2`, `ajv-formats-draft2019`). Those are optional XML/JSON-validator plugins pulled in transitively by `@cyclonedx/cyclonedx-library` (via the library) that this action never invokes; `ignore` aliases them to a throwing stub that cyclonedx's `_optPlug` wrapper catches and falls through. They are deliberately *ignored*, not declared `externals` (which would mean "present at runtime"). `persistLocal` writes a local copy of the built action to `.github/actions/local`.
+Defines the three build entries (`pre`/`main`/`post`), `minify: true`, an `ignore` list (`xmlbuilder2`, `libxmljs2`, `ajv-formats-draft2019`) and `persistLocal`, which writes a local copy of the built action to `.github/actions/local` for `act` testing.
 
-Output: `dist/pre.js`, `dist/main.js`, `dist/post.js`.
+The `ignore` list is a **safety net whose necessity is unverified**. `@cyclonedx/cyclonedx-library` is still installed transitively (through `@effected/github-actions` -> `@effected/sbom`), but the kit keeps its modules off the default runtime's import graph and the built bundles contain zero bytes of it. The entry may now be dead config; it was kept because removing it was not part of the port's verification budget. See [known follow-ups](#known-follow-ups).
+
+Output: `dist/pre.js` (284 kB), `dist/main.js` (416 kB), `dist/post.js` (284 kB) — down from 468 kB / 487 kB / 468 kB before the `@effected` port. The kit's confinement invariants hold in the bundle: zero occurrences of `azure`, `cyclonedx`, `sigstore` or `xmlbuilder` in any entry.
+
+---
+
+## Known Follow-ups
+
+Carried forward from the `@effected` port, recorded rather than papered over:
+
+- **Adopt `@effect/vitest`.** The suite is still plain vitest. The port moved the doubles, not the runner, deliberately — see [Testing Strategy](#testing-strategy).
+- **Re-verify (and probably delete) the `ignore` list in `action.config.ts`.** Confirm each of `xmlbuilder2`, `libxmljs2` and `ajv-formats-draft2019` is still reachable by the bundler before keeping the alias; the bundle evidence suggests none of them are.
 
 ---
 
@@ -395,18 +452,17 @@ Output: `dist/pre.js`, `dist/main.js`, `dist/post.js`.
 
 ## Related Documentation
 
-**Implementation plan:**
+**Port reference:**
 
-- [Silk Sync Action Plan](../plans/silk-sync-action.md)
+- [Effected port parity contract](../../plans/2026-08-04-effected-port-parity-contract.md) — the frozen observable contract, nine deliberate deviations, known-unknowns ledger and post-implementation verification results
+- [Effected port API dossier](../../plans/2026-08-04-effected-port-api-dossier.md) — signature-level legacy-to-kit symbol map, verified against the installed packages
+- [Effected port plan](../../plans/2026-08-04-effected-port-plan.md) — the sequencing the port followed
+- `.claude/plans/oracle/` — the pre-port `src/`, `action.yml` and generated schema, kept as the parity oracle
 
-**Migration reference (on this branch, separate tree):**
+**API authority:**
 
-- `docs/superpowers/specs/2026-05-29-silk-sync-effects-migration-design.md` — the migration design spec
-- `docs/superpowers/plans/2026-05-29-silk-sync-effects-migration.md` — the migration implementation plan
-
-**Reference implementation:**
-
-- `pnpm-config-dependency-action` — same Effect-TS + `@savvy-web/github-action-effects` patterns
+- `.repos/effect` — vendored read-only Effect source pinned to `effect@4.0.0-beta.101`
+- `.repos/effected` — vendored kit source pinned to `@effected/github-actions@0.5.1`; each package's `CLAUDE.md` is the intended usage, `packages/<name>/src/index.ts` the real export surface
 
 **Project files:**
 
@@ -426,4 +482,4 @@ Output: `dist/pre.js`, `dist/main.js`, `dist/post.js`.
 
 ---
 
-**Document Status:** Current — reflects the Effect v3 → v4 migration onto `effect@4.0.0-beta.98` and `@savvy-web/github-action-effects` v3: the standalone `@effect/platform` package dropped (`FetchHttpClient` now from `effect/unstable/http`, `NodeServices.layer` replacing `NodeContext.layer`), class-based `Context.Service` library services, `Schema.TaggedErrorClass` errors, v4 `.check(...)` / `Schema.Literals([...])` schema idioms, and draft-07 JSON-schema generation via `JsonSchema.toDocumentDraft07(Schema.toJsonSchemaDocument(SilkConfig))`. Still a library-supplied service layer (auth, resilient REST/GraphQL, state, outputs, reporting), flat `src/` layout, `GitHubToken` three-phase lifecycle and `action.config.ts` build config. Last synced with codebase on 2026-07-17.
+**Document Status:** Current — resynced 2026-08-04 against the `@effected/*` port. Service layer is `@effected/github-actions@0.5.1` + `@effected/github@0.2.3` + `@effected/config-file@0.2.1` on `effect@4.0.0-beta.101`; `@savvy-web/github-action-effects` is gone along with `GitHubClientLive`, `GitHubGraphQL`, `ConfigLoader`, `ErrorAccumulator`, `Step.groupStep` and the `/testing` subpath. Route-literal REST, ambient `Repo`, `GitHubError.kind` branching and `Effect.partition` are the new load-bearing patterns; the observable contract (inputs, outputs, `action.yml`, token lifecycle, step summary, per-repo error semantics) is unchanged.

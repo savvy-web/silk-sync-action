@@ -1,13 +1,20 @@
-import { ConfigProvider, Effect, Exit, Logger } from "effect";
+import { ActionInput } from "@effected/github-actions";
+import { Effect, Exit, Logger } from "effect";
 import { describe, expect, it } from "vitest";
 import { parseInputs } from "./inputs.js";
 
+/**
+ * Inputs are injected through `ActionInput.layer`, never a bare
+ * `ConfigProvider` keyed by the plain input name.
+ *
+ * @remarks
+ * `ActionInput.string("repos")` reads the runner variable `INPUT_REPOS`. A
+ * provider keyed by `"repos"` never matches it, so every read falls through to
+ * its default and the suite goes green while proving nothing. `ActionInput.layer`
+ * dual-accepts input-name keys and owns the mangling.
+ */
 const run = (inputs: Record<string, string>) =>
-	parseInputs.pipe(
-		Effect.provide(ConfigProvider.layer(ConfigProvider.fromUnknown(inputs))),
-		Effect.provide(Logger.layer([])),
-		Effect.runPromiseExit,
-	);
+	parseInputs.pipe(Effect.provide(ActionInput.layer(inputs)), Effect.provide(Logger.layer([])), Effect.runPromiseExit);
 
 describe("parseInputs", () => {
 	it("parses defaults with a single discovery method", async () => {
@@ -18,8 +25,42 @@ describe("parseInputs", () => {
 			expect(exit.value.customProperties).toEqual([]);
 			expect(exit.value.configFile).toBe(".github/silk.config.json");
 			expect(exit.value.dryRun).toBe(false);
+			expect(exit.value.removeCustomLabels).toBe(false);
 			expect(exit.value.syncSettings).toBe(true);
 			expect(exit.value.syncProjects).toBe(true);
+			expect(exit.value.skipBackfill).toBe(false);
+		}
+	});
+
+	it("reads an input spelled the way the runner actually spells it", async () => {
+		// The one case that fails if the `INPUT_` derivation is ever bypassed.
+		const exit = await run({ [ActionInput.variable("repos")]: "owner/a" });
+		expect(Exit.isSuccess(exit)).toBe(true);
+		if (Exit.isSuccess(exit)) expect(exit.value.repos).toEqual(["owner/a"]);
+	});
+
+	it("honors a non-default config-file", async () => {
+		const exit = await run({ repos: "a", "config-file": "cfg/silk.json" });
+		expect(Exit.isSuccess(exit)).toBe(true);
+		if (Exit.isSuccess(exit)) expect(exit.value.configFile).toBe("cfg/silk.json");
+	});
+
+	it("honors the boolean flags", async () => {
+		const exit = await run({
+			repos: "a",
+			"dry-run": "true",
+			"remove-custom-labels": "true",
+			"sync-settings": "false",
+			"sync-projects": "false",
+			"skip-backfill": "true",
+		});
+		expect(Exit.isSuccess(exit)).toBe(true);
+		if (Exit.isSuccess(exit)) {
+			expect(exit.value.dryRun).toBe(true);
+			expect(exit.value.removeCustomLabels).toBe(true);
+			expect(exit.value.syncSettings).toBe(false);
+			expect(exit.value.syncProjects).toBe(false);
+			expect(exit.value.skipBackfill).toBe(true);
 		}
 	});
 
@@ -34,13 +75,37 @@ describe("parseInputs", () => {
 		}
 	});
 
+	it("splits a custom-property on the first = only", async () => {
+		const exit = await run({ "custom-properties": "url=https://x/y=z" });
+		expect(Exit.isSuccess(exit)).toBe(true);
+		if (Exit.isSuccess(exit)) {
+			expect(exit.value.customProperties).toEqual([{ key: "url", value: "https://x/y=z" }]);
+		}
+	});
+
+	it("drops `#` comment lines from repos", async () => {
+		const exit = await run({ repos: "a\n# not a repo\nb" });
+		expect(Exit.isSuccess(exit)).toBe(true);
+		if (Exit.isSuccess(exit)) expect(exit.value.repos).toEqual(["a", "b"]);
+	});
+
 	it("fails when neither repos nor custom-properties is set", async () => {
 		const exit = await run({});
 		expect(Exit.isFailure(exit)).toBe(true);
 	});
 
-	it("fails on malformed custom-properties line", async () => {
+	it("fails on a malformed custom-properties line", async () => {
 		const exit = await run({ "custom-properties": "noequalshere" });
+		expect(Exit.isFailure(exit)).toBe(true);
+	});
+
+	it("fails on a custom-property with an empty key", async () => {
+		const exit = await run({ "custom-properties": "=standard" });
+		expect(Exit.isFailure(exit)).toBe(true);
+	});
+
+	it("fails on a custom-property with an empty value", async () => {
+		const exit = await run({ "custom-properties": "workflow=" });
 		expect(Exit.isFailure(exit)).toBe(true);
 	});
 });

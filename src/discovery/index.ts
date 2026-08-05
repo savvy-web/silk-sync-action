@@ -1,4 +1,4 @@
-import type { GitHubClient } from "@savvy-web/github-action-effects";
+import type { GitHubClient } from "@effected/github";
 import { Effect } from "effect";
 import { DiscoveryError } from "../errors.js";
 import type { CustomProperty, DiscoveredRepo } from "../schemas.js";

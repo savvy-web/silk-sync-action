@@ -1,4 +1,5 @@
-import type { GitHubClient } from "@savvy-web/github-action-effects";
+import type { GitHubClient } from "@effected/github";
+import { Repo, RepoRef } from "@effected/github";
 import { Effect } from "effect";
 import { DiscoveryError } from "../errors.js";
 import { getRepo } from "../github/reads.js";
@@ -16,7 +17,8 @@ export const discoverByExplicitList = (
 
 		for (const raw of repoNames) {
 			const [owner, repo] = raw.includes("/") ? (raw.split("/", 2) as [string, string]) : [defaultOwner, raw];
-			const result = yield* getRepo(owner, repo).pipe(
+			const result = yield* getRepo.pipe(
+				Repo.provide(new RepoRef({ owner, repo })),
 				Effect.map(
 					(data) =>
 						({
