@@ -1,5 +1,42 @@
 # @savvy-web/pnpm-module-template
 
+## 1.2.0
+
+### Features
+
+* ### Ported to the `@effected` kit
+
+  This action's Effect-based runtime foundation has moved off the deprecated `@savvy-web/github-action-effects@3` package onto `@effected/github-actions`, `@effected/github`, and `@effected/config-file`, running on `effect@4.0.0-beta.101`.
+
+  The action's consumer-facing contract is unchanged: all inputs and outputs, the three-phase pre/main/post lifecycle, and the generated `silk.config.schema.json` are identical. No workflow using this action needs to change anything.
+
+  ### Wider `repos` input parsing
+
+  The `repos` input now parses through a shared list parser that is a strict superset of the previous newline-splitting behavior. Every input that worked before still works identically. In addition to one repo per line, the input now also accepts:
+
+  * Bullet-prefixed lines (`- owner/repo`)
+  * Comma-separated values
+  * A JSON array of strings
+
+### Performance
+
+* Reduced bundled action size: `dist/main.js` from 487 kB to 416 kB, `dist/pre.js` and `dist/post.js` from 468 kB to 284 kB [#164][#164]
+
+### Dependencies
+
+* | Dependency                       | Type       | Action  | From   | To     |                                                                       |
+  | -------------------------------- | ---------- | ------- | ------ | ------ | --------------------------------------------------------------------- |
+  | @savvy-web/github-action-effects | dependency | removed | ^3.1.0 | —      |                                                                       |
+  | @effected/config-file            | dependency | added   | —      | ^0.2.1 |                                                                       |
+  | @effected/github                 | dependency | added   | —      | ^0.2.3 |                                                                       |
+  | @effected/github-actions         | dependency | added   | —      | ^0.5.1 | [#164][#164] Thanks [@spencerbeggs](https://github.com/spencerbeggs)! |
+
+### Patch Changes
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#164]: https://github.com/savvy-web/silk-sync-action/pull/164
+
 ## 1.1.3
 
 ### Dependencies
