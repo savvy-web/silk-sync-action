@@ -1,4 +1,5 @@
-import { ActionOutputs, ConfigLoader, GitHubClient, Step } from "@savvy-web/github-action-effects";
+import { ConfigFile, JsonCodec } from "@effected/config-file";
+import { ActionEnvironment, ActionLogger, ActionOutputs } from "@effected/github-actions";
 import { Effect } from "effect";
 import { discoverRepos } from "./discovery/index.js";
 import { parseInputs } from "./inputs.js";
@@ -21,17 +22,24 @@ const projectNumbersOf = (repos: ReadonlyArray<DiscoveredRepo>): ReadonlyArray<n
 
 export const program = Effect.gen(function* () {
 	const outputs = yield* ActionOutputs;
+	const logger = yield* ActionLogger;
 	const inputs = yield* parseInputs;
-	const { owner: org } = yield* Effect.flatMap(GitHubClient, (gh) => gh.repo);
+	// The org to sync is the org the workflow runs in. `ActionEnvironment` is the
+	// one thing that reads `process.env`, and it is already in `ActionServices`.
+	const { repositoryOwner: org } = yield* Effect.flatMap(ActionEnvironment, (env) => env.github);
 
-	const loader = yield* ConfigLoader;
-	const config = yield* loader.loadJson(inputs.configFile, SilkConfig);
+	const config = yield* ConfigFile.read(inputs.configFile, { schema: SilkConfig, codec: JsonCodec });
 	yield* Effect.logInfo(`Config loaded: ${config.labels.length} labels`);
 
-	const repos = yield* Step.groupStep("Discover repositories", discoverRepos(org, inputs));
+	// `Step.groupStep` was `group` + `withStep`; the kit exposes the two halves.
+	const discovery = discoverRepos(org, inputs);
+	const repos = yield* logger.group("Discover repositories", logger.withStep("Discover repositories", discovery));
+
 	const projectNumbers = inputs.syncProjects ? projectNumbersOf(repos) : [];
 	const projectCache = yield* resolveProjects(org, projectNumbers);
-	const results = yield* Step.groupStep("Sync repositories", processRepos(repos, config, projectCache, inputs));
+
+	const sync = processRepos(repos, config, projectCache, inputs);
+	const results = yield* logger.group("Sync repositories", logger.withStep("Sync repositories", sync));
 
 	const stats = aggregateStats(results);
 	yield* outputs.summary(buildSummaryMarkdown(stats, inputs));

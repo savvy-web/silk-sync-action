@@ -1,4 +1,4 @@
-import { GithubMarkdown } from "@savvy-web/github-action-effects";
+import { GitHubMarkdown } from "@effected/github-actions";
 import type { SyncStats } from "./stats.js";
 
 export const buildSummaryMarkdown = (
@@ -6,9 +6,9 @@ export const buildSummaryMarkdown = (
 	flags: { readonly dryRun: boolean; readonly syncSettings: boolean; readonly syncProjects: boolean },
 ): string => {
 	const parts: Array<string> = [];
-	parts.push(GithubMarkdown.heading(flags.dryRun ? "Silk Sync (dry-run)" : "Silk Sync", 2));
+	parts.push(GitHubMarkdown.heading(flags.dryRun ? "Silk Sync (dry-run)" : "Silk Sync", 2));
 	parts.push(
-		GithubMarkdown.table(
+		GitHubMarkdown.table(
 			["Repositories", "Count"],
 			[
 				["Total", String(stats.total)],
@@ -18,7 +18,7 @@ export const buildSummaryMarkdown = (
 		),
 	);
 	parts.push(
-		GithubMarkdown.table(
+		GitHubMarkdown.table(
 			["Labels", "Count"],
 			[
 				["Created", String(stats.labels.created)],
@@ -31,7 +31,7 @@ export const buildSummaryMarkdown = (
 	);
 	if (flags.syncSettings) {
 		parts.push(
-			GithubMarkdown.table(
+			GitHubMarkdown.table(
 				["Settings", "Count"],
 				[
 					["Changed", String(stats.settings.changed)],
@@ -42,7 +42,7 @@ export const buildSummaryMarkdown = (
 	}
 	if (flags.syncProjects) {
 		parts.push(
-			GithubMarkdown.table(
+			GitHubMarkdown.table(
 				["Projects", "Count"],
 				[
 					["Linked", String(stats.projects.linked)],

@@ -48,7 +48,9 @@
 	},
 	"dependencies": {
 		"@effect/platform-node": "catalog:effect",
-		"@savvy-web/github-action-effects": "^3.1.0",
+		"@effected/config-file": "^0.2.1",
+		"@effected/github": "^0.2.3",
+		"@effected/github-actions": "^0.5.1",
 		"effect": "catalog:effect"
 	},
 	"devDependencies": {

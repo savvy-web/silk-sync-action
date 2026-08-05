@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DiscoveryError, InvalidInputError } from "./errors.js";
+import { DiscoveryError, InvalidInputError } from "../src/errors.js";
 
 describe("errors", () => {
 	it("DiscoveryError has a readable message", () => {

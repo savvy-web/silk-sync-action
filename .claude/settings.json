@@ -7,7 +7,8 @@
 		"design-docs@spencerbeggs": true,
 		"effected@spencerbeggs": true,
 		"silk@savvy-web-systems": true,
-		"vitest-agent@spencerbeggs": true
+		"vitest-agent@spencerbeggs": true,
+		"plugin-bot@spencerbeggs": true
 	},
 	"plansDirectory": ".claude/plans"
 }

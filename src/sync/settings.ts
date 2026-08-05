@@ -1,10 +1,10 @@
-import type { GitHubClient } from "@savvy-web/github-action-effects";
+import type { GitHubRepository, Repo, RepositoryPatch } from "@effected/github";
 import { Effect } from "effect";
-import type { GitHubRepo } from "../github/reads.js";
+import type { RepoSnapshot } from "../github/reads.js";
 import { updateRepo } from "../github/reads.js";
 import type { RepositorySettings, SettingChange } from "../schemas.js";
 
-const SYNCABLE_KEYS: ReadonlyArray<keyof RepositorySettings & keyof GitHubRepo> = [
+const SYNCABLE_KEYS: ReadonlyArray<keyof RepositorySettings & keyof RepoSnapshot> = [
 	"has_wiki",
 	"has_issues",
 	"has_projects",
@@ -20,30 +20,37 @@ const SYNCABLE_KEYS: ReadonlyArray<keyof RepositorySettings & keyof GitHubRepo> 
 	"allow_auto_merge",
 ];
 
+/**
+ * Compare the repository's live settings against config and reconcile the drift.
+ *
+ * @remarks
+ * The repository is the ambient `Repo`; only the drift is applied, so a key the
+ * config does not mention is never written.
+ */
 export const syncSettings = (
-	owner: string,
-	repo: string,
 	desired: RepositorySettings,
-	current: GitHubRepo,
+	current: RepoSnapshot,
 	dryRun: boolean,
-): Effect.Effect<{ changes: ReadonlyArray<SettingChange>; applied: boolean }, never, GitHubClient> =>
+): Effect.Effect<{ changes: ReadonlyArray<SettingChange>; applied: boolean }, never, GitHubRepository | Repo> =>
 	Effect.gen(function* () {
 		const changes: Array<SettingChange> = [];
-		const toApply: Record<string, unknown> = {};
+		const toApply: RepositoryPatch = {};
 		for (const key of SYNCABLE_KEYS) {
 			const want = desired[key];
 			if (want === undefined) continue;
 			const have = current[key];
 			if (have !== want) {
 				changes.push({ key, from: have, to: want });
-				toApply[key] = want;
+				// `key` is a union, so a direct `toApply[key] = want` cannot be
+				// correlated by the checker. This writes the same thing without a cast.
+				Object.assign(toApply, { [key]: want });
 			}
 		}
 
 		if (changes.length === 0) return { changes: [], applied: true };
 		if (dryRun) return { changes, applied: false };
 
-		const applied = yield* updateRepo(owner, repo, toApply).pipe(
+		const applied = yield* updateRepo(toApply).pipe(
 			Effect.as(true),
 			Effect.catch((e) => {
 				const msg =

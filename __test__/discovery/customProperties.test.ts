@@ -1,19 +1,11 @@
-import { GitHubClientTest } from "@savvy-web/github-action-effects/testing";
 import { Effect, Logger } from "effect";
 import { describe, expect, it } from "vitest";
-import { discoverByCustomProperties } from "./customProperties.js";
+import { discoverByCustomProperties } from "../../src/discovery/customProperties.js";
+import { githubTestLayer } from "../test-support.js";
 
-const layerWith = (rows: unknown[]) =>
-	GitHubClientTest.layer({
-		restResponses: new Map(),
-		graphqlResponses: new Map(),
-		paginateResponses: new Map([["orgs.listCustomPropertiesValues", [rows]]]),
-		repo: { owner: "acme", repo: "x" },
-	});
-
-const run = (rows: unknown[], filters: { key: string; value: string }[]) =>
+const run = (rows: ReadonlyArray<unknown>, filters: ReadonlyArray<{ key: string; value: string }>) =>
 	discoverByCustomProperties("acme", filters).pipe(
-		Effect.provide(layerWith(rows)),
+		Effect.provide(githubTestLayer({ paginate: { "GET /orgs/{org}/properties/values": rows } })),
 		Effect.provide(Logger.layer([])),
 		Effect.runPromise,
 	);
@@ -38,7 +30,25 @@ describe("discoverByCustomProperties", () => {
 		];
 		const result = await run(rows, [{ key: "workflow", value: "standard" }]);
 		expect(result.map((r) => r.name)).toEqual(["a"]);
-		expect(result[0].customProperties).toEqual({ workflow: "Standard" });
+		expect(result[0]?.customProperties).toEqual({ workflow: "Standard" });
+		expect(result[0]?.nodeId).toBe("na");
+	});
+
+	it("requires every filter to match, not merely one", async () => {
+		const rows = [
+			{
+				repository_id: 1,
+				repository_name: "a",
+				repository_full_name: "acme/a",
+				repository_node_id: "na",
+				properties: [{ property_name: "workflow", value: "standard" }],
+			},
+		];
+		const result = await run(rows, [
+			{ key: "workflow", value: "standard" },
+			{ key: "team", value: "platform" },
+		]);
+		expect(result).toEqual([]);
 	});
 
 	it("returns [] when no filters provided", async () => {

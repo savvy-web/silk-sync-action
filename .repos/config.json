@@ -1,9 +1,9 @@
 {
 	"repos": {
-		"effect-smol": {
-			"url": "https://github.com/Effect-TS/effect-smol.git",
-			"ref": "effect@4.0.0-beta.98",
-			"purpose": "Read-only Effect v4 source pinned to the tag matching the effect catalog — the authority on what v4 actually exports, plus the v3→v4 migration notes and the @effect/vitest reference implementation.",
+		"effect": {
+			"url": "https://github.com/Effect-TS/effect.git",
+			"ref": "effect@4.0.0-beta.101",
+			"purpose": "Read-only Effect v4 source pinned to the tag matching the effect catalog — the authority on what v4 actually exports, plus the v3→v4 migration notes and the @effect/vitest reference implementation. Tracks the main Effect-TS/effect monorepo (v4 development moved back there on 2026-07-19 when the effect-smol repo was archived); vendored at .repos/effect since the 2026-07-24 rename, matching the path a consuming repo would use.",
 			"sparse": [
 				"packages/effect",
 				"packages/vitest",
@@ -26,10 +26,32 @@
 				{
 					"id": "n-013b",
 					"date": "2026-07-16",
-					"ref": "effect@4.0.0-beta.98",
-					"note": "Services/tags live in Context.ts (there is no ServiceMap.ts at beta.98). Key consumer-side fact settled there: Context.Key<Id, Shape> extends Effect<Shape, never, Id> (Context.ts:65) — v4 tags/Service classes are still first-class Effects, flatMap-able without .asEffect()."
+					"ref": "effect@4.0.0-beta.101",
+					"note": "Services/tags live in Context.ts (there is no ServiceMap.ts on the v4 line). Key consumer-side fact settled there: Context.Key<Id, Shape> extends Effect<Shape, never, Id> — v4 tags/Service classes are still first-class Effects, flatMap-able without .asEffect()."
 				}
 			]
+		},
+		"effected": {
+			"url": "https://github.com/spencerbeggs/effected.git",
+			"ref": "@effected/github-actions@0.5.1",
+			"purpose": "Read-only source for the @effected package kit, pinned to the release tag matching the installed @effected/github-actions.",
+			"sparse": [
+				"packages",
+				"design",
+				"CLAUDE.md",
+				"README.md"
+			],
+			"orientation": {
+				"layout": "pnpm monorepo, one directory per published package under packages/<name>/ with src/, test files co-located, and its own CLAUDE.md. design/ holds the kit's internal design docs. The website/, lib/, plugin/ and lockfile trees are excluded from the sparse checkout.",
+				"keyPaths": {
+					"packages": "packages",
+					"actions-runtime": "packages/github-actions/src",
+					"github-api": "packages/github/src",
+					"subprocesses": "packages/commands/src",
+					"design-docs": "design"
+				},
+				"startHere": "packages/<name>/src/index.ts for a package's real export surface, and its CLAUDE.md for the intended usage. Pinned to the release tag named by `ref`, so the checkout matches the published version this repo installs — re-pin whenever that version moves. A tag is a monorepo-wide release commit, so github-actions@X and app@Y from the same wave resolve to one commit. node_modules still wins on any disagreement."
+			}
 		}
 	}
 }

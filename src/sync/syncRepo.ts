@@ -1,6 +1,7 @@
-import type { GitHubClient, GitHubGraphQL } from "@savvy-web/github-action-effects";
+import type { GitHubClient, GitHubIssue, GitHubRepository } from "@effected/github";
+import { Repo, RepoRef } from "@effected/github";
 import { Effect } from "effect";
-import type { GitHubRepo } from "../github/reads.js";
+import type { RepoSnapshot } from "../github/reads.js";
 import { getRepo } from "../github/reads.js";
 import type { DiscoveredRepo, RepoSyncResult, SettingChange, SilkConfig, SyncErrorRecord } from "../schemas.js";
 import { syncLabels } from "./labels.js";
@@ -24,19 +25,28 @@ const projectNumberOf = (repo: DiscoveredRepo): number | null => {
 	return Number.isFinite(n) && n > 0 ? n : null;
 };
 
+/**
+ * Sync one repository.
+ *
+ * @remarks
+ * The error channel is `never` by contract: every failure inside becomes a
+ * {@link SyncErrorRecord} on the result, so one bad repository never aborts the
+ * run. `Repo` is provided **here**, once, so every read and write below acts on
+ * this repository without threading an `(owner, repo)` pair through each call.
+ */
 export const syncRepo = (
 	repo: DiscoveredRepo,
 	config: SilkConfig,
 	projectCache: ProjectCache,
 	inputs: SyncInputs,
-): Effect.Effect<RepoSyncResult, never, GitHubClient | GitHubGraphQL> =>
+): Effect.Effect<RepoSyncResult, never, GitHubClient | GitHubIssue | GitHubRepository> =>
 	Effect.gen(function* () {
 		const errors: Array<SyncErrorRecord> = [];
 
-		const repoData = yield* getRepo(repo.owner, repo.name).pipe(
+		const repoData = yield* getRepo.pipe(
 			Effect.catch((e) => {
 				errors.push({ target: "repo", operation: "get", error: e.reason });
-				return Effect.succeed(null as GitHubRepo | null);
+				return Effect.succeed(null as RepoSnapshot | null);
 			}),
 		);
 
@@ -50,8 +60,7 @@ export const syncRepo = (
 		errors.push(...labelResult.errors);
 
 		let settings: { changes: ReadonlyArray<SettingChange>; applied: boolean } = { changes: [], applied: true };
-		if (inputs.syncSettings && repoData)
-			settings = yield* syncSettings(repo.owner, repo.name, config.settings, repoData, inputs.dryRun);
+		if (inputs.syncSettings && repoData) settings = yield* syncSettings(config.settings, repoData, inputs.dryRun);
 
 		let project = {
 			projectTitle: null as string | null,
@@ -88,4 +97,4 @@ export const syncRepo = (
 			errors: [...errors],
 			success: errors.length === 0,
 		} satisfies RepoSyncResult;
-	});
+	}).pipe(Repo.provide(new RepoRef({ owner: repo.owner, repo: repo.name })));

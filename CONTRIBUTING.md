@@ -30,22 +30,25 @@ pnpm run test
 ```text
 silk-sync-action/
 ├── src/
+│   ├── pre.ts                  # Pre step (App token provisioning)
 │   ├── main.ts                 # Main step (discovery, sync, reporting)
-│   ├── pre.ts                  # Pre step (auth, config, input validation)
 │   ├── post.ts                 # Post step (token revocation)
-│   └── lib/
-│       ├── config/             # Config file loading and validation
-│       ├── discovery/          # Repo discovery (custom props + explicit list)
-│       ├── github/             # GitHub App authentication
-│       ├── rate-limit/         # API rate limit throttling
-│       ├── reporting/          # Console and step summary output
-│       ├── schemas/            # Effect Schema definitions and errors
-│       ├── services/           # REST and GraphQL client services
-│       └── sync/               # Label, settings, and project sync logic
+│   ├── program.ts              # Main Effect program
+│   ├── inputs.ts               # Action input parsing
+│   ├── schemas.ts              # Effect Schema definitions
+│   ├── errors.ts               # Tagged error types
+│   ├── state.ts                # Cross-step action state
+│   ├── layers/                 # Layer composition per step
+│   ├── github/                 # Typed GitHub REST wrappers
+│   ├── discovery/              # Repo discovery (custom props + explicit list)
+│   ├── sync/                   # Label, settings, and project sync logic
+│   └── reporting/              # Stats aggregation and step summary output
+├── __test__/                   # Test suites, mirroring the src/ tree
 ├── lib/
 │   ├── configs/                # Shared configuration files
 │   └── scripts/                # Build and codegen scripts
 ├── action.yml                  # GitHub Action definition
+├── action.config.ts            # Bundler configuration
 ├── silk.config.schema.json     # JSON Schema for config files
 └── silk.config.example.json    # Example configuration
 ```

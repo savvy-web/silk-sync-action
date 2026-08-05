@@ -1,6 +1,6 @@
-import type { GitHubClient, GitHubClientError } from "@savvy-web/github-action-effects";
+import type { GitHubClient, GitHubError, Repo } from "@effected/github";
 import { Effect } from "effect";
-import type { GitHubLabel } from "../github/reads.js";
+import type { RepoLabel } from "../github/reads.js";
 import { createLabel, deleteLabel, listLabels, updateLabel } from "../github/reads.js";
 import type { LabelDefinition, LabelResult, SyncErrorRecord } from "../schemas.js";
 
@@ -13,13 +13,13 @@ export const syncLabels = (
 ): Effect.Effect<
 	{ results: ReadonlyArray<LabelResult>; customLabels: ReadonlyArray<string>; errors: ReadonlyArray<SyncErrorRecord> },
 	never,
-	GitHubClient
+	GitHubClient | Repo
 > =>
 	Effect.gen(function* () {
-		const existing = yield* listLabels(owner, repo).pipe(
+		const existing = yield* listLabels.pipe(
 			Effect.catch((e) =>
 				Effect.logWarning(`Could not list labels for ${owner}/${repo}: ${e.reason}`).pipe(
-					Effect.as([] as ReadonlyArray<GitHubLabel>),
+					Effect.as([] as ReadonlyArray<RepoLabel>),
 				),
 			),
 		);
@@ -30,7 +30,7 @@ export const syncLabels = (
 		const customLabels = existing.filter((l) => !desiredNames.has(l.name.toLowerCase())).map((l) => l.name);
 
 		/** Run a label mutation; on failure record an error and report it did not apply. */
-		const apply = (operation: string, name: string, effect: Effect.Effect<void, GitHubClientError, GitHubClient>) =>
+		const apply = (operation: string, name: string, effect: Effect.Effect<void, GitHubError, GitHubClient | Repo>) =>
 			effect.pipe(
 				Effect.as(true),
 				Effect.catch((e) => {
@@ -44,7 +44,7 @@ export const syncLabels = (
 			if (!have) {
 				if (dryRun) {
 					results.push({ name: want.name, operation: "created" });
-				} else if (yield* apply("create", want.name, createLabel(owner, repo, want))) {
+				} else if (yield* apply("create", want.name, createLabel(want))) {
 					results.push({ name: want.name, operation: "created" });
 				}
 				continue;
@@ -59,7 +59,7 @@ export const syncLabels = (
 				if (colorDiffers) changes.push(`color: #${have.color} -> #${want.color}`);
 				if (dryRun) {
 					results.push({ name: want.name, operation: "updated", changes });
-				} else if (yield* apply("update", want.name, updateLabel(owner, repo, have.name, want))) {
+				} else if (yield* apply("update", want.name, updateLabel(have.name, want))) {
 					results.push({ name: want.name, operation: "updated", changes });
 				}
 			} else {
@@ -71,7 +71,7 @@ export const syncLabels = (
 			for (const name of customLabels) {
 				if (dryRun) {
 					results.push({ name, operation: "removed" });
-				} else if (yield* apply("remove", name, deleteLabel(owner, repo, name))) {
+				} else if (yield* apply("remove", name, deleteLabel(name))) {
 					results.push({ name, operation: "removed" });
 				}
 			}

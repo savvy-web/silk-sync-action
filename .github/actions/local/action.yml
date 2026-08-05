@@ -22,7 +22,7 @@ inputs:
         team=platform
     required: false
   repos:
-    description: Multiline list of explicit repository names (one per line). Supports bare names or owner/repo format.
+    description: List of explicit repository names, as bare names or owner/repo. Accepts one per line, `- ` bullets, comma-separated values, or a JSON array. `#` comments are stripped.
     required: false
   dry-run:
     description: Preview changes without applying them

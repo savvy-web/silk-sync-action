@@ -1,17 +1,12 @@
-import { GitHubClientTest } from "@savvy-web/github-action-effects/testing";
 import { Effect, Exit, Logger } from "effect";
 import { describe, expect, it } from "vitest";
-import { discoverByExplicitList } from "./explicit.js";
+import { discoverByExplicitList } from "../../src/discovery/explicit.js";
+import { githubTestLayer } from "../test-support.js";
 
-const run = (repoResponse: unknown | undefined, names: string[]) => {
-	const restResponses = new Map<string, { data: unknown }>();
-	if (repoResponse !== undefined) restResponses.set("repos.get", { data: repoResponse });
-	const layer = GitHubClientTest.layer({
-		restResponses,
-		graphqlResponses: new Map(),
-		paginateResponses: new Map(),
-		repo: { owner: "acme", repo: "x" },
-	});
+const run = (repoResponse: unknown | undefined, names: ReadonlyArray<string>) => {
+	const layer = githubTestLayer(
+		repoResponse === undefined ? {} : { request: { "GET /repos/{owner}/{repo}": repoResponse } },
+	);
 	return discoverByExplicitList("acme", names).pipe(
 		Effect.provide(layer),
 		Effect.provide(Logger.layer([])),
