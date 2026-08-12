@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Silk Sync Action** is a GitHub Action that synchronizes repository settings, labels, and GitHub Projects V2 linking across a GitHub organization. It reads a centralized JSON config file (`silk.config.json`) and applies it to discovered repositories.
 
-Built with **Effect v4** (`effect@4.0.0-beta.101` via `catalog:effect`) on top of the **`@effected/*`** kit and bundled with **`@savvy-web/github-action-builder`**. Runs as a three-phase `node24` action: `pre` (App token provisioning) -> `main` (sync) -> `post` (token revocation).
+Built with **Effect v4** (`effect@4.0.0-beta.107` via `catalog:effect`) on top of the **`@effected/*`** kit and bundled with **`@savvy-web/github-action-builder`**. Runs as a three-phase `node24` action: `pre` (App token provisioning) -> `main` (sync) -> `post` (token revocation).
 
 Three kit packages carry the service layer:
 
@@ -22,7 +22,7 @@ The action previously ran on `@savvy-web/github-action-effects@3`, which is **de
 
 **For detailed architecture:** `@./.claude/design/silk-sync-action/architecture.md` — Load when modifying sync workflow logic, adding sync capabilities, debugging GitHub API interactions, or understanding the kit service layer.
 
-**Effect v4 API authority:** `.repos/effect` — vendored read-only Effect source pinned to `effect@4.0.0-beta.101` (matching `catalog:effect`) with v3→v4 migration notes. **Kit API authority:** `.repos/effected`, pinned to `@effected/github-actions@0.5.1`; each package's `CLAUDE.md` is the intended usage and `packages/<name>/src/index.ts` is the real export surface. Consult both rather than memory.
+**Effect v4 API authority:** `.repos/effect` — vendored read-only Effect source pinned to `effect@4.0.0-beta.107` (matching `catalog:effect`) with v3→v4 migration notes. **Kit API authority:** `.repos/effected`, pinned to `@effected/github-actions@0.6.0`; each package's `CLAUDE.md` is the intended usage and `packages/<name>/src/index.ts` is the real export surface. Consult both rather than memory.
 
 ## Commands
 
@@ -51,7 +51,7 @@ Turbo tasks: `build:prod` and `generate:schema` each `dependsOn` `types:check`, 
 
 Build entries and the optional-dependency `ignore` list (cyclonedx's XML and draft-2019 plugins, pulled in transitively by `@effected/github-actions` -> `@effected/sbom`) are configured in `action.config.ts`.
 
-Output: `dist/pre.js`, `dist/main.js`, `dist/post.js` (~416 kB main, ~284 kB pre/post after the `@effected` port — down from 487 kB / 468 kB) plus `dist/package.json`. The kit's confinement invariants hold in the bundle: zero occurrences of `azure`, `cyclonedx`, `sigstore` or `xmlbuilder` in any entry. The build also persists a local copy under `.github/actions/local/` (for `act` testing); both are committed.
+Output: `dist/pre.js`, `dist/main.js`, `dist/post.js` (~414 kB main, ~285 kB pre/post after the `@effected` port — down from 487 kB / 468 kB) plus `dist/package.json`. The kit's confinement invariants hold in the bundle: zero occurrences of `azure`, `cyclonedx`, `sigstore` or `xmlbuilder` in any entry. The build also persists a local copy under `.github/actions/local/` (for `act` testing); both are committed.
 
 ### Running a Single Test
 
@@ -100,7 +100,7 @@ Each push is guarded: if the remote `v<major>` tag or `dev` already points at it
 - `src/program.ts` -- Main Effect program (discover -> sync -> report -> outputs)
 - `src/inputs.ts` -- Input parsing via `ActionInput` -> `SilkInputs`
 - `src/schemas.ts` -- Effect Schema definitions (SilkConfig, domain types, ResultsOutput)
-- `src/errors.ts` -- `Schema.TaggedErrorClass` types (DiscoveryError, InvalidInputError)
+- `src/errors.ts` -- `Schema.TaggedError` types (DiscoveryError, InvalidInputError)
 - `src/state.ts` -- `ActionState` structs (StartTimeState) + state keys
 - `src/layers/app.ts` -- PreLive / MainLive / PostLive layer composition
 - `src/github/reads.ts` -- Route-keyed `GitHubClient` wrappers, resolved against the ambient `Repo`
@@ -118,7 +118,7 @@ Each push is guarded: if the remote `v<major>` tag or `dev` already points at it
 - **One error per surface**: `GitHubError` with a `kind` discriminant for REST, `GitHubGraphQLError` for GraphQL. Branch on `kind` (`"alreadyExists"`), never on the rendered message.
 - **Entry points**: `Action.run(program, { layer })` composes `ActionRuntime.layer` internally — the platform, HTTP client and workflow-command `Logger` all arrive for free. A layer passed to it must have error channel `never`, hence `Layer.orDie` on `GitHubToken.clientLayer()`.
 - **Effect-TS services**: class-based `Context.Service` for DI (with companion `*Shape` interfaces), `Layer.mergeAll`/`Layer.provide` for composition
-- **Typed errors**: `Schema.TaggedErrorClass` with custom `get message()` getters
+- **Typed errors**: `Schema.TaggedError` with custom `get message()` getters
 - **State passing**: `ActionState.save`/`getOptional` with Schema structs
 - **Per-repo error accumulation**: `Effect.partition` (the kit ships no `ErrorAccumulator` successor, deliberately); `syncRepo`'s error channel is `never`, so repo failures are recorded in results and never fatal
 - **Step framing**: `logger.group(name, logger.withStep(name, effect))` — the two halves of the legacy `Step.groupStep`

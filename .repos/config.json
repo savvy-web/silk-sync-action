@@ -2,7 +2,7 @@
 	"repos": {
 		"effect": {
 			"url": "https://github.com/Effect-TS/effect.git",
-			"ref": "effect@4.0.0-beta.101",
+			"ref": "effect@4.0.0-beta.107",
 			"purpose": "Read-only Effect v4 source pinned to the tag matching the effect catalog — the authority on what v4 actually exports, plus the v3→v4 migration notes and the @effect/vitest reference implementation. Tracks the main Effect-TS/effect monorepo (v4 development moved back there on 2026-07-19 when the effect-smol repo was archived); vendored at .repos/effect since the 2026-07-24 rename, matching the path a consuming repo would use.",
 			"sparse": [
 				"packages/effect",
@@ -20,20 +20,20 @@
 					"migration-notes": "migration",
 					"vitest-reference": "packages/vitest/src"
 				},
-				"startHere": "packages/effect/src settles what v4 actually exports (evidence-ladder rung 2); migration/*.md settles v3→v4 renames (rung 1). Before trusting an answer, check the pin matches the installed effect version — node_modules wins on disagreement."
+				"startHere": "packages/effect/src settles what v4 actually exports (evidence-ladder rung 2); migration/*.md settles v3→v4 renames (rung 1). Before trusting an answer, check the pin matches the installed effect version — node_modules wins on disagreement.\n\nServices/tags live in Context.ts (there is no ServiceMap.ts on the v4 line). Key consumer-side fact settled there: Context.Key<Id, Shape> extends Effect<Shape, never, Id> — v4 tags/Service classes are still first-class Effects, flatMap-able without .asEffect()."
 			},
 			"notes": [
 				{
-					"id": "n-013b",
-					"date": "2026-07-16",
-					"ref": "effect@4.0.0-beta.101",
-					"note": "Services/tags live in Context.ts (there is no ServiceMap.ts on the v4 line). Key consumer-side fact settled there: Context.Key<Id, Shape> extends Effect<Shape, never, Id> — v4 tags/Service classes are still first-class Effects, flatMap-able without .asEffect()."
+					"id": "n-7ac3",
+					"date": "2026-08-12",
+					"ref": "effect@4.0.0-beta.107",
+					"note": "JSON Schema lowering hoists duplicate anonymous subschemas. As of beta.107, Schema.toJsonSchemaDocument moves any structurally identical anonymous subschema occurring THREE OR MORE times into a shared definition keyed by a generated name (e.g. `Union_` for a `boolean | null`); at one or two occurrences it stays inline. Threshold verified by probe. This silently reshapes committed schema artifacts on a version bump — the body is byte-identical, only a $ref indirection plus a generated key appear. Fix is to annotate the shared node at its definition site: `Schema.optional(Schema.Boolean).annotate({ identifier: \"OptionalBoolean\" })` names the union itself. Annotating the INNER schema (Schema.Boolean.annotate(...)) names the boolean, not the union, and the union still hoists as `Union_`. There is no ToJsonSchemaOptions field controlling this (options are additionalProperties, generateDescriptions, includeAnnotationKey only)."
 				}
 			]
 		},
 		"effected": {
 			"url": "https://github.com/spencerbeggs/effected.git",
-			"ref": "@effected/github-actions@0.5.1",
+			"ref": "@effected/github-actions@0.6.0",
 			"purpose": "Read-only source for the @effected package kit, pinned to the release tag matching the installed @effected/github-actions.",
 			"sparse": [
 				"packages",

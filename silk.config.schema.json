@@ -42,68 +42,36 @@
 			"additionalProperties": false,
 			"title": "Label Definition"
 		},
+		"OptionalBoolean": {
+			"anyOf": [
+				{
+					"type": "boolean"
+				},
+				{
+					"type": "null"
+				}
+			]
+		},
 		"RepositorySettings": {
 			"type": "object",
 			"properties": {
 				"has_wiki": {
-					"anyOf": [
-						{
-							"type": "boolean"
-						},
-						{
-							"type": "null"
-						}
-					]
+					"$ref": "#/definitions/OptionalBoolean"
 				},
 				"has_issues": {
-					"anyOf": [
-						{
-							"type": "boolean"
-						},
-						{
-							"type": "null"
-						}
-					]
+					"$ref": "#/definitions/OptionalBoolean"
 				},
 				"has_projects": {
-					"anyOf": [
-						{
-							"type": "boolean"
-						},
-						{
-							"type": "null"
-						}
-					]
+					"$ref": "#/definitions/OptionalBoolean"
 				},
 				"has_discussions": {
-					"anyOf": [
-						{
-							"type": "boolean"
-						},
-						{
-							"type": "null"
-						}
-					]
+					"$ref": "#/definitions/OptionalBoolean"
 				},
 				"allow_merge_commit": {
-					"anyOf": [
-						{
-							"type": "boolean"
-						},
-						{
-							"type": "null"
-						}
-					]
+					"$ref": "#/definitions/OptionalBoolean"
 				},
 				"allow_squash_merge": {
-					"anyOf": [
-						{
-							"type": "boolean"
-						},
-						{
-							"type": "null"
-						}
-					]
+					"$ref": "#/definitions/OptionalBoolean"
 				},
 				"squash_merge_commit_title": {
 					"anyOf": [
@@ -128,54 +96,19 @@
 					]
 				},
 				"allow_rebase_merge": {
-					"anyOf": [
-						{
-							"type": "boolean"
-						},
-						{
-							"type": "null"
-						}
-					]
+					"$ref": "#/definitions/OptionalBoolean"
 				},
 				"allow_update_branch": {
-					"anyOf": [
-						{
-							"type": "boolean"
-						},
-						{
-							"type": "null"
-						}
-					]
+					"$ref": "#/definitions/OptionalBoolean"
 				},
 				"delete_branch_on_merge": {
-					"anyOf": [
-						{
-							"type": "boolean"
-						},
-						{
-							"type": "null"
-						}
-					]
+					"$ref": "#/definitions/OptionalBoolean"
 				},
 				"web_commit_signoff_required": {
-					"anyOf": [
-						{
-							"type": "boolean"
-						},
-						{
-							"type": "null"
-						}
-					]
+					"$ref": "#/definitions/OptionalBoolean"
 				},
 				"allow_auto_merge": {
-					"anyOf": [
-						{
-							"type": "boolean"
-						},
-						{
-							"type": "null"
-						}
-					]
+					"$ref": "#/definitions/OptionalBoolean"
 				}
 			},
 			"additionalProperties": false,
