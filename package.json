@@ -48,15 +48,15 @@
 	},
 	"dependencies": {
 		"@effect/platform-node": "catalog:effect",
-		"@effected/config-file": "^0.2.1",
-		"@effected/github": "^0.2.3",
-		"@effected/github-actions": "^0.5.1",
+		"@effected/config-file": "^0.3.0",
+		"@effected/github": "^0.3.0",
+		"@effected/github-actions": "^0.6.0",
 		"effect": "catalog:effect"
 	},
 	"devDependencies": {
-		"@savvy-web/github-action-builder": "^2.2.2",
-		"@savvy-web/silk": "^3.4.0",
-		"@vitest-agent/plugin": "^2.0.13"
+		"@savvy-web/github-action-builder": "^2.2.3",
+		"@savvy-web/silk": "^3.5.2",
+		"@vitest-agent/plugin": "^2.0.16"
 	},
 	"packageManager": "pnpm@11.20.0+sha512.9a6f330a95b66446ea088faf1521405a8a01f07fde7124cc9958dfed52d4bb436737e65b08f85f37b46fcba375092558ac51262b816844b22f63406ed166bfee",
 	"engines": {

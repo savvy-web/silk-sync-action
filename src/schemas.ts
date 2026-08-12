@@ -30,20 +30,34 @@ export const LabelDefinition = Schema.Struct({
 });
 export type LabelDefinition = typeof LabelDefinition.Type;
 
+/**
+ * The optional-boolean shape shared by most repository settings.
+ *
+ * @remarks
+ * Carries an explicit `identifier` purely so the JSON Schema lowering names the
+ * resulting `boolean | null` union. As of `effect@4.0.0-beta.107` the lowering
+ * hoists any structurally identical anonymous subschema that occurs three or
+ * more times into a shared definition; without an identifier it is emitted
+ * under the generated key `Union_`, which is meaningless in editor tooltips and
+ * not stable across betas. The annotation changes the definition key only — the
+ * emitted body is byte-identical.
+ */
+const OptionalBoolean = Schema.optional(Schema.Boolean).annotate({ identifier: "OptionalBoolean" });
+
 export const RepositorySettings = Schema.Struct({
-	has_wiki: Schema.optional(Schema.Boolean),
-	has_issues: Schema.optional(Schema.Boolean),
-	has_projects: Schema.optional(Schema.Boolean),
-	has_discussions: Schema.optional(Schema.Boolean),
-	allow_merge_commit: Schema.optional(Schema.Boolean),
-	allow_squash_merge: Schema.optional(Schema.Boolean),
+	has_wiki: OptionalBoolean,
+	has_issues: OptionalBoolean,
+	has_projects: OptionalBoolean,
+	has_discussions: OptionalBoolean,
+	allow_merge_commit: OptionalBoolean,
+	allow_squash_merge: OptionalBoolean,
 	squash_merge_commit_title: Schema.optional(SquashMergeTitle),
 	squash_merge_commit_message: Schema.optional(SquashMergeMessage),
-	allow_rebase_merge: Schema.optional(Schema.Boolean),
-	allow_update_branch: Schema.optional(Schema.Boolean),
-	delete_branch_on_merge: Schema.optional(Schema.Boolean),
-	web_commit_signoff_required: Schema.optional(Schema.Boolean),
-	allow_auto_merge: Schema.optional(Schema.Boolean),
+	allow_rebase_merge: OptionalBoolean,
+	allow_update_branch: OptionalBoolean,
+	delete_branch_on_merge: OptionalBoolean,
+	web_commit_signoff_required: OptionalBoolean,
+	allow_auto_merge: OptionalBoolean,
 }).annotate({
 	identifier: "RepositorySettings",
 	title: "Repository Settings",
