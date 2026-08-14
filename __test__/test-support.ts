@@ -13,7 +13,7 @@
  * @module test-support
  */
 
-import type { GitHubClientShape } from "@effected/github";
+import type { GitHubClientShape, GitHubError } from "@effected/github";
 import { GitHubClient, GitHubGraphQLError, GitHubIssue, GitHubRepository, Repo, RepoRef } from "@effected/github";
 import { Effect, Layer } from "effect";
 
@@ -23,10 +23,21 @@ export type GraphQLScript =
 	| { readonly ok: false; readonly kind: "alreadyExists" | "rejected" | "notFound" };
 
 export interface GitHubTestOptions {
-	/** Keyed by route literal; the `data` a `request` answers with. */
+	/**
+	 * Keyed by route literal; the `data` a `request` answers with — or a
+	 * {@link GitHubError} the call fails with.
+	 *
+	 * @remarks
+	 * A recorded error **is** the response. Scripting a failure by leaving a
+	 * route out instead is a defect that names the route: absence means
+	 * "unwired", not "this endpoint rejects".
+	 */
 	readonly request?: Readonly<Record<string, unknown>>;
-	/** Keyed by route literal; the whole collection, paged for real on demand. */
-	readonly paginate?: Readonly<Record<string, ReadonlyArray<unknown>>>;
+	/**
+	 * Keyed by route literal; the whole collection, paged for real on demand —
+	 * or a {@link GitHubError} the paginated read fails with.
+	 */
+	readonly paginate?: Readonly<Record<string, ReadonlyArray<unknown> | GitHubError>>;
 	/** Keyed by `GraphQLDocument.name`. An unscripted document fails, it does not die. */
 	readonly graphql?: Readonly<Record<string, GraphQLScript>>;
 	/** Every GraphQL document name the code under test sent, in order. */

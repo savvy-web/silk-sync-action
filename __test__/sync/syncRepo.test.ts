@@ -1,3 +1,4 @@
+import { GitHubError } from "@effected/github";
 import { Effect, Logger } from "effect";
 import { describe, expect, it } from "vitest";
 import type { DiscoveredRepo, SilkConfig } from "../../src/schemas.js";
@@ -84,7 +85,15 @@ describe("syncRepo", () => {
 	});
 
 	it("records an error when the repo fetch fails", async () => {
-		const layer = githubTestLayer({ paginate: { "GET /repos/{owner}/{repo}/labels": [] } });
+		// The repo read is the subject, so it is the only thing scripted to fail;
+		// the label create succeeds so nothing else contributes an error record.
+		const layer = githubTestLayer({
+			request: {
+				"GET /repos/{owner}/{repo}": GitHubError.notFound("GitHubRepository.get", "acme/r"),
+				"POST /repos/{owner}/{repo}/labels": {},
+			},
+			paginate: { "GET /repos/{owner}/{repo}/labels": [] },
+		});
 		const result = await syncRepo(repo, config, new Map(), {
 			...inputs,
 			syncSettings: false,
@@ -104,7 +113,7 @@ describe("syncRepo", () => {
 			[5, { ok: true as const, project: { id: "P5", title: "Board", number: 5, closed: false } }],
 		]);
 		const layer = githubTestLayer({
-			request: { "GET /repos/{owner}/{repo}": REPO_PAYLOAD },
+			request: { "GET /repos/{owner}/{repo}": REPO_PAYLOAD, "POST /repos/{owner}/{repo}/labels": {} },
 			paginate: { "GET /repos/{owner}/{repo}/labels": [], "GET /repos/{owner}/{repo}/issues": [] },
 			graphql: { linkRepoToProject: { ok: true, data: {} } },
 		});
