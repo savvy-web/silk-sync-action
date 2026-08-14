@@ -2,6 +2,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { NodeFileSystem } from "@effect/platform-node";
+import { GitHubError } from "@effected/github";
 import { ActionEnvironment, ActionInput, ActionLogger, ActionOutputs } from "@effected/github-actions";
 import { Effect, Layer, Logger } from "effect";
 import { describe, expect, it } from "vitest";
@@ -121,9 +122,14 @@ describe("program", () => {
 
 	it("fails the action when discovery fails", async () => {
 		const recorded = emptyRecord();
-		// No custom-properties fixture -> discovery fails.
+		// The custom-properties read rejects -> discovery fails.
 		const layer = arrange({
 			inputs: { "custom-properties": "workflow=standard", "config-file": configFile() },
+			github: {
+				paginate: {
+					"GET /orgs/{org}/properties/values": GitHubError.rejected("listPropertyValues", 403, "Forbidden"),
+				},
+			},
 			recorded,
 		});
 
@@ -207,19 +213,24 @@ describe("program", () => {
 
 	it("reports a per-repo failure without failing the action", async () => {
 		const recorded = emptyRecord();
-		// The repo resolves for discovery but every sync read fails.
+		// The repo resolves for discovery but the label create rejects.
 		const layer = arrange({
 			inputs: { repos: "a", "config-file": configFile() },
 			github: {
 				request: {
 					"GET /repos/{owner}/{repo}": { node_id: "N", name: "a", full_name: "acme/a", owner: { login: "acme" } },
+					"POST /repos/{owner}/{repo}/labels": GitHubError.rejected(
+						"GitHubRepository.createLabel",
+						422,
+						"Validation failed",
+					),
 				},
 				paginate: { "GET /repos/{owner}/{repo}/labels": [] },
 			},
 			recorded,
 		});
 		await program.pipe(Effect.provide(layer), Effect.provide(Logger.layer([])), Effect.runPromise);
-		// The label create has no fixture, so the one repo records an error.
+		// The label create rejected, so the one repo records an error.
 		expect(recorded.failures).toEqual([]);
 		expect(outputValue(recorded, "success")).toBe("false");
 		expect(outputValue(recorded, "repos-failed")).toBe("1");
