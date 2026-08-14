@@ -2,7 +2,7 @@ import type { GitHubIssue, Repo } from "@effected/github";
 import { GitHubClient, GraphQLDocument } from "@effected/github";
 import { Effect, Schema } from "effect";
 import { listOpenIssues } from "../github/reads.js";
-import type { ProjectInfo } from "../schemas.js";
+import type { ProjectInfo, SyncErrorRecord } from "../schemas.js";
 
 const ResolveProjectResponse = Schema.Struct({
 	organization: Schema.Struct({
@@ -81,6 +81,16 @@ export const resolveProjects = (
 		return cache;
 	});
 
+/**
+ * Link one repository to its tracked project and backfill open issues.
+ *
+ * @remarks
+ * Every failure — an unresolved project, a missing node ID, a rejected link,
+ * a failed issue listing or item add — is returned as a
+ * {@link SyncErrorRecord} so the caller can fold it into the repository's
+ * failure determination. "Already linked" / "already present" are not
+ * failures; a dry run performs no writes and records no errors.
+ */
 export const syncProject = (
 	owner: string,
 	repo: string,
@@ -95,14 +105,26 @@ export const syncProject = (
 		linkStatus: "linked" | "already" | "dry-run" | "error" | "skipped";
 		itemsAdded: number;
 		itemsAlreadyPresent: number;
+		errors: ReadonlyArray<SyncErrorRecord>;
 	},
 	never,
 	GitHubClient | GitHubIssue | Repo
 > =>
 	Effect.gen(function* () {
+		const errors: Array<SyncErrorRecord> = [];
+
 		const entry = cache.get(projectNumber);
-		if (!entry?.ok)
-			return { projectTitle: null, linkStatus: "skipped" as const, itemsAdded: 0, itemsAlreadyPresent: 0 };
+		if (!entry?.ok) {
+			// The resolution failure was cached once for the run; surfacing it per
+			// repository is what keeps a repo tracking a missing or closed project
+			// from reporting success.
+			errors.push({
+				target: "project",
+				operation: "resolve",
+				error: entry ? entry.error : `Project #${projectNumber} was not resolved`,
+			});
+			return { projectTitle: null, linkStatus: "skipped" as const, itemsAdded: 0, itemsAlreadyPresent: 0, errors };
+		}
 
 		const client = yield* GitHubClient;
 		const { project } = entry;
@@ -111,7 +133,14 @@ export const syncProject = (
 		// "Could not resolve to a node" GraphQL error — fail with a clear message.
 		if (repoNodeId === "") {
 			yield* Effect.logWarning(`Skipping project link for ${owner}/${repo}: missing repository node ID`);
-			return { projectTitle: project.title, linkStatus: "error" as const, itemsAdded: 0, itemsAlreadyPresent: 0 };
+			errors.push({ target: "project", operation: "link", error: "missing repository node ID" });
+			return {
+				projectTitle: project.title,
+				linkStatus: "error" as const,
+				itemsAdded: 0,
+				itemsAlreadyPresent: 0,
+				errors,
+			};
 		}
 
 		let linkStatus: "linked" | "already" | "dry-run" | "error";
@@ -122,13 +151,22 @@ export const syncProject = (
 				// The kit classifies "already linked" once, structurally. The
 				// pre-port code lowercased the message and grepped it for
 				// "already"/"exists" — exactly the defect `kind` exists to delete.
-				Effect.catch((e) => Effect.succeed(e.kind === "alreadyExists" ? ("already" as const) : ("error" as const))),
+				Effect.catch((e) => {
+					if (e.kind === "alreadyExists") return Effect.succeed("already" as const);
+					errors.push({ target: "project", operation: "link", error: e.reason });
+					return Effect.succeed("error" as const);
+				}),
 			);
 
 		let itemsAdded = 0;
 		let itemsAlreadyPresent = 0;
 		if (!skipBackfill && linkStatus !== "error") {
-			const issues = yield* listOpenIssues.pipe(Effect.catch(() => Effect.succeed([])));
+			const issues = yield* listOpenIssues.pipe(
+				Effect.catch((e) => {
+					errors.push({ target: "project", operation: "list-issues", error: e.reason });
+					return Effect.succeed([]);
+				}),
+			);
 			for (const item of issues) {
 				if (dryRun) {
 					itemsAdded++;
@@ -136,12 +174,16 @@ export const syncProject = (
 				}
 				const outcome = yield* client.graphql(AddItemToProject, { projectId: project.id, contentId: item.nodeId }).pipe(
 					Effect.as("added" as const),
-					Effect.catch((e) => Effect.succeed(e.kind === "alreadyExists" ? ("exists" as const) : ("error" as const))),
+					Effect.catch((e) => {
+						if (e.kind === "alreadyExists") return Effect.succeed("exists" as const);
+						errors.push({ target: "project", operation: "add-item", error: e.reason });
+						return Effect.succeed("error" as const);
+					}),
 				);
 				if (outcome === "added") itemsAdded++;
 				else if (outcome === "exists") itemsAlreadyPresent++;
 			}
 		}
 
-		return { projectTitle: project.title, linkStatus, itemsAdded, itemsAlreadyPresent };
+		return { projectTitle: project.title, linkStatus, itemsAdded, itemsAlreadyPresent, errors };
 	});

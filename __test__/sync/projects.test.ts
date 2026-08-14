@@ -1,3 +1,4 @@
+import { GitHubError } from "@effected/github";
 import { Effect, Logger } from "effect";
 import { describe, expect, it } from "vitest";
 import type { ProjectCacheEntry } from "../../src/sync/projects.js";
@@ -131,6 +132,21 @@ describe("syncProject", () => {
 		);
 		expect(result.linkStatus).toBe("skipped");
 		expect(result.projectTitle).toBeNull();
+		expect(result.errors).toHaveLength(1);
+		expect(result.errors[0]?.operation).toBe("resolve");
+	});
+
+	it("records the cached resolution failure as an error", async () => {
+		// resolveProjects cached the failure; syncProject must surface it per
+		// repo, or a repo tracking a closed project reports success.
+		const cache = new Map([[7, { ok: false as const, error: 'Project "Roadmap" is closed' }]]);
+		const result = await syncProject("acme", "r", "REPO_NODE", 7, cache, false, false).pipe(
+			Effect.provide(githubTestLayer({})),
+			Effect.provide(Logger.layer([])),
+			Effect.runPromise,
+		);
+		expect(result.linkStatus).toBe("skipped");
+		expect(result.errors).toEqual([{ target: "project", operation: "resolve", error: 'Project "Roadmap" is closed' }]);
 	});
 
 	it("reports an error when the repository node id is empty", async () => {
@@ -141,6 +157,8 @@ describe("syncProject", () => {
 		);
 		expect(result.linkStatus).toBe("error");
 		expect(result.projectTitle).toBe("Roadmap");
+		expect(result.errors).toHaveLength(1);
+		expect(result.errors[0]?.operation).toBe("link");
 	});
 
 	it("dry-run reports the link and counts open items without mutating", async () => {
@@ -199,5 +217,49 @@ describe("syncProject", () => {
 		expect(result.linkStatus).toBe("error");
 		expect(result.itemsAdded).toBe(0);
 		expect(graphqlCalls).toEqual(["linkRepoToProject"]);
+		expect(result.errors).toHaveLength(1);
+		expect(result.errors[0]?.target).toBe("project");
+		expect(result.errors[0]?.operation).toBe("link");
+	});
+
+	it("records an error when adding an item fails", async () => {
+		const layer = githubTestLayer({
+			graphql: {
+				linkRepoToProject: { ok: true, data: {} },
+				addItemToProject: { ok: false, kind: "rejected" },
+			},
+			paginate: {
+				"GET /repos/{owner}/{repo}/issues": [
+					{ id: 1, node_id: "I1", number: 1, title: "a", state: "open", labels: [], html_url: "u" },
+				],
+			},
+		});
+		const result = await syncProject("acme", "r", "REPO_NODE", 7, cacheWithRoadmap(), false, false).pipe(
+			Effect.provide(layer),
+			Effect.provide(Logger.layer([])),
+			Effect.runPromise,
+		);
+		expect(result.itemsAdded).toBe(0);
+		expect(result.itemsAlreadyPresent).toBe(0);
+		expect(result.errors).toHaveLength(1);
+		expect(result.errors[0]?.operation).toBe("add-item");
+	});
+
+	it("records an error when the open-issue listing fails", async () => {
+		const layer = githubTestLayer({
+			graphql: { linkRepoToProject: { ok: true, data: {} } },
+			paginate: {
+				"GET /repos/{owner}/{repo}/issues": GitHubError.rejected("GitHubIssue.list", 500, "boom"),
+			},
+		});
+		const result = await syncProject("acme", "r", "REPO_NODE", 7, cacheWithRoadmap(), false, false).pipe(
+			Effect.provide(layer),
+			Effect.provide(Logger.layer([])),
+			Effect.runPromise,
+		);
+		expect(result.linkStatus).toBe("linked");
+		expect(result.itemsAdded).toBe(0);
+		expect(result.errors).toHaveLength(1);
+		expect(result.errors[0]?.operation).toBe("list-issues");
 	});
 });
