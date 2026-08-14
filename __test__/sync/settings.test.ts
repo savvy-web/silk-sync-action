@@ -58,9 +58,10 @@ describe("syncSettings", () => {
 		expect(changes).toEqual([]);
 	});
 
-	it("reports applied=false when the update is rejected", async () => {
-		// The PATCH rejects; the drift is still reported.
-		const { changes, applied } = await syncSettings({ has_wiki: false }, currentRepo, false).pipe(
+	it("reports applied=false and a structured error when the update is rejected", async () => {
+		// The PATCH rejects; the drift is still reported, and the failure is a
+		// record the caller can fold into the repo result — not just a warning.
+		const { changes, applied, errors } = await syncSettings({ has_wiki: false }, currentRepo, false).pipe(
 			Effect.provide(
 				githubTestLayer({
 					request: {
@@ -73,5 +74,16 @@ describe("syncSettings", () => {
 		);
 		expect(changes).toHaveLength(1);
 		expect(applied).toBe(false);
+		expect(errors).toHaveLength(1);
+		expect(errors[0]?.target).toBe("settings");
+		expect(errors[0]?.operation).toBe("update");
+		expect(errors[0]?.error).toContain("422");
+	});
+
+	it("returns no errors on a successful apply and on dry-run", async () => {
+		const appliedRun = await run(false);
+		expect(appliedRun.errors).toEqual([]);
+		const dryRun = await run(true);
+		expect(dryRun.errors).toEqual([]);
 	});
 });
