@@ -1,3 +1,4 @@
+import { GitHubError } from "@effected/github";
 import { Effect, Logger } from "effect";
 import { describe, expect, it } from "vitest";
 import type { DiscoveredRepo, SilkConfig } from "../../src/schemas.js";
@@ -36,9 +37,16 @@ describe("processRepos", () => {
 	});
 
 	it("still returns a result for a repo whose reads all fail", async () => {
-		// Nothing is seeded, so every read fails — and the run does not.
+		// Every read is scripted to fail — and the run does not.
 		const results = await processRepos(repos, config, new Map(), inputs).pipe(
-			Effect.provide(githubTestLayer({})),
+			Effect.provide(
+				githubTestLayer({
+					request: { "GET /repos/{owner}/{repo}": GitHubError.notFound("GitHubRepository.get", "repo") },
+					paginate: {
+						"GET /repos/{owner}/{repo}/labels": GitHubError.rejected("GitHubRepository.listLabels", 403, "Forbidden"),
+					},
+				}),
+			),
 			Effect.provide(Logger.layer([])),
 			Effect.runPromise,
 		);

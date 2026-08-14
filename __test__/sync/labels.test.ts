@@ -1,3 +1,4 @@
+import { GitHubError } from "@effected/github";
 import { Effect, Logger } from "effect";
 import { describe, expect, it } from "vitest";
 import type { LabelDefinition } from "../../src/schemas.js";
@@ -74,9 +75,20 @@ describe("syncLabels", () => {
 	});
 
 	it("records an error and does not report success when a label API call fails", async () => {
-		// No create-label fixture -> the create call fails.
+		// The create endpoint rejects; every desired label is therefore an error.
 		const { results, errors } = await syncLabels("acme", "r", desired, false, false).pipe(
-			Effect.provide(githubTestLayer({ paginate: { "GET /repos/{owner}/{repo}/labels": [] } })),
+			Effect.provide(
+				githubTestLayer({
+					request: {
+						"POST /repos/{owner}/{repo}/labels": GitHubError.rejected(
+							"GitHubRepository.createLabel",
+							422,
+							"Validation failed",
+						),
+					},
+					paginate: { "GET /repos/{owner}/{repo}/labels": [] },
+				}),
+			),
 			Effect.provide(Logger.layer([])),
 			Effect.runPromise,
 		);
@@ -87,10 +99,16 @@ describe("syncLabels", () => {
 	});
 
 	it("proceeds with an empty existing set when listing labels fails", async () => {
-		// No labels fixture at all -> the paginated read fails, and the sync
-		// still runs, treating every desired label as missing.
+		// The paginated read fails, and the sync still runs, treating every
+		// desired label as missing.
 		const { results, customLabels } = await syncLabels("acme", "r", desired, true, true).pipe(
-			Effect.provide(githubTestLayer({})),
+			Effect.provide(
+				githubTestLayer({
+					paginate: {
+						"GET /repos/{owner}/{repo}/labels": GitHubError.rejected("GitHubRepository.listLabels", 403, "Forbidden"),
+					},
+				}),
+			),
 			Effect.provide(Logger.layer([])),
 			Effect.runPromise,
 		);

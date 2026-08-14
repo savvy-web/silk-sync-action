@@ -1,3 +1,4 @@
+import { GitHubError } from "@effected/github";
 import { Effect, Logger } from "effect";
 import { describe, expect, it } from "vitest";
 import type { RepoSnapshot } from "../../src/github/reads.js";
@@ -58,9 +59,15 @@ describe("syncSettings", () => {
 	});
 
 	it("reports applied=false when the update is rejected", async () => {
-		// No PATCH fixture -> the update fails; the drift is still reported.
+		// The PATCH rejects; the drift is still reported.
 		const { changes, applied } = await syncSettings({ has_wiki: false }, currentRepo, false).pipe(
-			Effect.provide(githubTestLayer({})),
+			Effect.provide(
+				githubTestLayer({
+					request: {
+						"PATCH /repos/{owner}/{repo}": GitHubError.rejected("GitHubRepository.update", 422, "Validation failed"),
+					},
+				}),
+			),
 			Effect.provide(Logger.layer([])),
 			Effect.runPromise,
 		);
