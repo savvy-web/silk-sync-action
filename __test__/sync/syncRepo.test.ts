@@ -104,6 +104,55 @@ describe("syncRepo", () => {
 		expect(result.errors[0]?.operation).toBe("get");
 	});
 
+	it("reports failure when the settings update is rejected", async () => {
+		// The PATCH is the subject: labels succeed, the repo read succeeds, only
+		// the settings write is scripted to fail — so the sole error record and
+		// the success flip are attributable to it.
+		const layer = githubTestLayer({
+			request: {
+				"GET /repos/{owner}/{repo}": REPO_PAYLOAD,
+				"POST /repos/{owner}/{repo}/labels": {},
+				"PATCH /repos/{owner}/{repo}": GitHubError.rejected("GitHubRepository.update", 422, "Validation failed"),
+			},
+			paginate: { "GET /repos/{owner}/{repo}/labels": [] },
+		});
+		const result = await syncRepo(repo, config, new Map(), { ...inputs, syncProjects: false }).pipe(
+			Effect.provide(layer),
+			Effect.provide(Logger.layer([])),
+			Effect.runPromise,
+		);
+		expect(result.success).toBe(false);
+		expect(result.settingsApplied).toBe(false);
+		expect(result.errors).toHaveLength(1);
+		expect(result.errors[0]?.target).toBe("settings");
+		expect(result.errors[0]?.operation).toBe("update");
+	});
+
+	it("reports failure when the project link fails", async () => {
+		const trackingRepo: DiscoveredRepo = {
+			...repo,
+			customProperties: { "project-tracking": "true", "project-number": "5" },
+		};
+		const cache = new Map([
+			[5, { ok: true as const, project: { id: "P5", title: "Board", number: 5, closed: false } }],
+		]);
+		const layer = githubTestLayer({
+			request: { "GET /repos/{owner}/{repo}": REPO_PAYLOAD, "POST /repos/{owner}/{repo}/labels": {} },
+			paginate: { "GET /repos/{owner}/{repo}/labels": [] },
+			graphql: { linkRepoToProject: { ok: false, kind: "rejected" } },
+		});
+		const result = await syncRepo(trackingRepo, config, cache, {
+			...inputs,
+			syncSettings: false,
+			skipBackfill: true,
+		}).pipe(Effect.provide(layer), Effect.provide(Logger.layer([])), Effect.runPromise);
+		expect(result.projectLinkStatus).toBe("error");
+		expect(result.success).toBe(false);
+		expect(result.errors).toHaveLength(1);
+		expect(result.errors[0]?.target).toBe("project");
+		expect(result.errors[0]?.operation).toBe("link");
+	});
+
 	it("links a project-tracking repo to its project", async () => {
 		const trackingRepo: DiscoveredRepo = {
 			...repo,

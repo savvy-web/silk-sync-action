@@ -59,14 +59,20 @@ export const syncRepo = (
 		);
 		errors.push(...labelResult.errors);
 
-		let settings: { changes: ReadonlyArray<SettingChange>; applied: boolean } = { changes: [], applied: true };
+		let settings: {
+			changes: ReadonlyArray<SettingChange>;
+			applied: boolean;
+			errors: ReadonlyArray<SyncErrorRecord>;
+		} = { changes: [], applied: true, errors: [] };
 		if (inputs.syncSettings && repoData) settings = yield* syncSettings(config.settings, repoData, inputs.dryRun);
+		errors.push(...settings.errors);
 
 		let project = {
 			projectTitle: null as string | null,
 			linkStatus: null as RepoSyncResult["projectLinkStatus"],
 			itemsAdded: 0,
 			itemsAlreadyPresent: 0,
+			errors: [] as ReadonlyArray<SyncErrorRecord>,
 		};
 		const projectNumber = projectNumberOf(repo);
 		if (inputs.syncProjects && projectNumber !== null) {
@@ -81,6 +87,7 @@ export const syncRepo = (
 				inputs.skipBackfill,
 			);
 		}
+		errors.push(...project.errors);
 
 		return {
 			repo: repo.name,

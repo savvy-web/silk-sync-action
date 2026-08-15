@@ -2,7 +2,7 @@ import type { GitHubRepository, Repo, RepositoryPatch } from "@effected/github";
 import { Effect } from "effect";
 import type { RepoSnapshot } from "../github/reads.js";
 import { updateRepo } from "../github/reads.js";
-import type { RepositorySettings, SettingChange } from "../schemas.js";
+import type { RepositorySettings, SettingChange, SyncErrorRecord } from "../schemas.js";
 
 const SYNCABLE_KEYS: ReadonlyArray<keyof RepositorySettings & keyof RepoSnapshot> = [
 	"has_wiki",
@@ -26,12 +26,20 @@ const SYNCABLE_KEYS: ReadonlyArray<keyof RepositorySettings & keyof RepoSnapshot
  * @remarks
  * The repository is the ambient `Repo`; only the drift is applied, so a key the
  * config does not mention is never written.
+ *
+ * A rejected update is returned as a {@link SyncErrorRecord} alongside
+ * `applied: false`, so the caller can fold it into the repository's failure
+ * determination — a dry run is not an error and returns none.
  */
 export const syncSettings = (
 	desired: RepositorySettings,
 	current: RepoSnapshot,
 	dryRun: boolean,
-): Effect.Effect<{ changes: ReadonlyArray<SettingChange>; applied: boolean }, never, GitHubRepository | Repo> =>
+): Effect.Effect<
+	{ changes: ReadonlyArray<SettingChange>; applied: boolean; errors: ReadonlyArray<SyncErrorRecord> },
+	never,
+	GitHubRepository | Repo
+> =>
 	Effect.gen(function* () {
 		const changes: Array<SettingChange> = [];
 		const toApply: RepositoryPatch = {};
@@ -47,9 +55,10 @@ export const syncSettings = (
 			}
 		}
 
-		if (changes.length === 0) return { changes: [], applied: true };
-		if (dryRun) return { changes, applied: false };
+		if (changes.length === 0) return { changes: [], applied: true, errors: [] };
+		if (dryRun) return { changes, applied: false, errors: [] };
 
+		const errors: Array<SyncErrorRecord> = [];
 		const applied = yield* updateRepo(toApply).pipe(
 			Effect.as(true),
 			Effect.catch((e) => {
@@ -57,8 +66,9 @@ export const syncSettings = (
 					e.status === 422
 						? `some settings rejected by org policy (422): ${e.reason}`
 						: `failed to apply settings: ${e.reason}`;
+				errors.push({ target: "settings", operation: "update", error: msg });
 				return Effect.logWarning(`  ${msg}`).pipe(Effect.as(false));
 			}),
 		);
-		return { changes, applied };
+		return { changes, applied, errors };
 	});
