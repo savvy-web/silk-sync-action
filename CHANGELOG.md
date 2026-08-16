@@ -1,5 +1,17 @@
 # @savvy-web/pnpm-module-template
 
+## 1.4.1
+
+### Dependencies
+
+* | Dependency       | Type       | Action  | From   | To     |                                                                              |
+  | ---------------- | ---------- | ------- | ------ | ------ | ---------------------------------------------------------------------------- |
+  | @effected/github | dependency | updated | ^0.4.2 | ^0.4.3 | [#189][#189] Thanks [@savvy-web-bot](https://github.com/apps/savvy-web-bot)! |
+
+### Patch Changes
+
+[#189]: https://github.com/savvy-web/silk-sync-action/pull/189
+
 ## 1.4.0
 
 ### Bug Fixes
