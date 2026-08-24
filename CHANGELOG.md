@@ -1,11 +1,28 @@
 # @savvy-web/pnpm-module-template
 
+## 1.4.8
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effected/github | dependency | updated | ^0.7.0 | ^0.8.0 |
+| @effected/github-actions | dependency | updated | ^0.9.2 | ^0.10.0 |
+
+[#228][#228]
+
+### Thanks
+
+Thanks to [@savvy-web-bot](https://github.com/apps/savvy-web-bot) for their contributions!
+
+[#228]: https://github.com/savvy-web/silk-sync-action/pull/228
+
 ## 1.4.7
 
 ### Dependencies
 
-* | Dependency            | Type       | Action  | From   | To     |                                                                              |
-  | --------------------- | ---------- | ------- | ------ | ------ | ---------------------------------------------------------------------------- |
+- | Dependency | Type | Action | From | To |  |
+  | --- | --- | --- | --- | --- | --- |
   | @effected/config-file | dependency | updated | ^0.5.0 | ^0.5.1 | [#223][#223] Thanks [@savvy-web-bot](https://github.com/apps/savvy-web-bot)! |
 
 ### Patch Changes
@@ -16,8 +33,8 @@
 
 ### Dependencies
 
-* | Dependency               | Type       | Action  | From   | To     |                                                                              |
-  | ------------------------ | ---------- | ------- | ------ | ------ | ---------------------------------------------------------------------------- |
+- | Dependency | Type | Action | From | To |  |
+  | --- | --- | --- | --- | --- | --- |
   | @effected/github-actions | dependency | updated | ^0.9.1 | ^0.9.2 | [#206][#206] Thanks [@savvy-web-bot](https://github.com/apps/savvy-web-bot)! |
 
 ### Patch Changes
@@ -28,9 +45,9 @@
 
 ### Dependencies
 
-* | Dependency               | Type       | Action  | From   | To     |                                                                              |
-  | ------------------------ | ---------- | ------- | ------ | ------ | ---------------------------------------------------------------------------- |
-  | @effected/github         | dependency | updated | ^0.6.0 | ^0.7.0 |                                                                              |
+- | Dependency | Type | Action | From | To |  |
+  | --- | --- | --- | --- | --- | --- |
+  | @effected/github | dependency | updated | ^0.6.0 | ^0.7.0 |  |
   | @effected/github-actions | dependency | updated | ^0.9.0 | ^0.9.1 | [#203][#203] Thanks [@savvy-web-bot](https://github.com/apps/savvy-web-bot)! |
 
 ### Patch Changes
@@ -41,9 +58,9 @@
 
 ### Dependencies
 
-* | Dependency               | Type       | Action  | From   | To     |                                                                              |
-  | ------------------------ | ---------- | ------- | ------ | ------ | ---------------------------------------------------------------------------- |
-  | @effected/github         | dependency | updated | ^0.5.0 | ^0.6.0 |                                                                              |
+- | Dependency | Type | Action | From | To |  |
+  | --- | --- | --- | --- | --- | --- |
+  | @effected/github | dependency | updated | ^0.5.0 | ^0.6.0 |  |
   | @effected/github-actions | dependency | updated | ^0.8.0 | ^0.9.0 | [#200][#200] Thanks [@savvy-web-bot](https://github.com/apps/savvy-web-bot)! |
 
 ### Patch Changes
@@ -54,13 +71,13 @@
 
 ### Dependencies
 
-* | Dependency               | Type       | Action  | From           | To           |                                                                              |
-  | ------------------------ | ---------- | ------- | -------------- | ------------ | ---------------------------------------------------------------------------- |
-  | @effect/platform-node    | dependency | updated | 4.0.0-beta.107 | 4.0.0-rc.109 |                                                                              |
-  | @effected/config-file    | dependency | updated | ^0.4.2         | ^0.5.0       |                                                                              |
-  | @effected/github         | dependency | updated | ^0.4.3         | ^0.5.0       |                                                                              |
-  | @effected/github-actions | dependency | updated | ^0.7.0         | ^0.8.0       |                                                                              |
-  | effect                   | dependency | updated | 4.0.0-beta.107 | 4.0.0-rc.109 | [#197][#197] Thanks [@savvy-web-bot](https://github.com/apps/savvy-web-bot)! |
+- | Dependency | Type | Action | From | To |  |
+  | --- | --- | --- | --- | --- | --- |
+  | @effect/platform-node | dependency | updated | 4.0.0-beta.107 | 4.0.0-rc.109 |  |
+  | @effected/config-file | dependency | updated | ^0.4.2 | ^0.5.0 |  |
+  | @effected/github | dependency | updated | ^0.4.3 | ^0.5.0 |  |
+  | @effected/github-actions | dependency | updated | ^0.7.0 | ^0.8.0 |  |
+  | effect | dependency | updated | 4.0.0-beta.107 | 4.0.0-rc.109 | [#197][#197] Thanks [@savvy-web-bot](https://github.com/apps/savvy-web-bot)! |
 
 ### Patch Changes
 
@@ -70,8 +87,8 @@
 
 ### Dependencies
 
-* | Dependency            | Type       | Action  | From   | To     |                                                                              |
-  | --------------------- | ---------- | ------- | ------ | ------ | ---------------------------------------------------------------------------- |
+- | Dependency | Type | Action | From | To |  |
+  | --- | --- | --- | --- | --- | --- |
   | @effected/config-file | dependency | updated | ^0.4.1 | ^0.4.2 | [#194][#194] Thanks [@savvy-web-bot](https://github.com/apps/savvy-web-bot)! |
 
 ### Patch Changes
@@ -82,8 +99,8 @@
 
 ### Dependencies
 
-* | Dependency       | Type       | Action  | From   | To     |                                                                              |
-  | ---------------- | ---------- | ------- | ------ | ------ | ---------------------------------------------------------------------------- |
+- | Dependency | Type | Action | From | To |  |
+  | --- | --- | --- | --- | --- | --- |
   | @effected/github | dependency | updated | ^0.4.2 | ^0.4.3 | [#189][#189] Thanks [@savvy-web-bot](https://github.com/apps/savvy-web-bot)! |
 
 ### Patch Changes
@@ -94,7 +111,7 @@
 
 ### Bug Fixes
 
-* A repository whose settings update or project sync failed no longer reports success. `syncRepo` previously determined `success` from repo-read and label errors only, so a settings PATCH rejected by org policy, a failed project link, an unresolved (missing or closed) project, a failed open-issue listing, or a failed project item add all left the repository — and therefore the action's `success` output and step summary — green.
+- A repository whose settings update or project sync failed no longer reports success. `syncRepo` previously determined `success` from repo-read and label errors only, so a settings PATCH rejected by org policy, a failed project link, an unresolved (missing or closed) project, a failed open-issue listing, or a failed project item add all left the repository — and therefore the action's `success` output and step summary — green.
 
   Every one of those failures is now recorded as a structured error on the repository result (`target: "settings"` or `target: "project"`, with an `operation` of `update`, `resolve`, `link`, `list-issues` or `add-item`) and folded into the success determination.
 
@@ -102,9 +119,9 @@
 
 ### Dependencies
 
-* | Dependency               | Type       | Action  | From   | To     |                                                                              |
-  | ------------------------ | ---------- | ------- | ------ | ------ | ---------------------------------------------------------------------------- |
-  | @effected/github         | dependency | updated | ^0.4.1 | ^0.4.2 |                                                                              |
+- | Dependency | Type | Action | From | To |  |
+  | --- | --- | --- | --- | --- | --- |
+  | @effected/github | dependency | updated | ^0.4.1 | ^0.4.2 |  |
   | @effected/github-actions | dependency | updated | ^0.6.1 | ^0.7.0 | [#185][#185] Thanks [@savvy-web-bot](https://github.com/apps/savvy-web-bot)! |
 
 ### Patch Changes
@@ -117,10 +134,10 @@ Thanks to [@savvy-web-bot](https://github.com/apps/savvy-web-bot) for their cont
 
 ### Dependencies
 
-* | Dependency               | Type       | Action  | From   | To     |                                                                              |
-  | ------------------------ | ---------- | ------- | ------ | ------ | ---------------------------------------------------------------------------- |
-  | @effected/config-file    | dependency | updated | ^0.3.1 | ^0.4.1 |                                                                              |
-  | @effected/github         | dependency | updated | ^0.3.0 | ^0.4.1 |                                                                              |
+- | Dependency | Type | Action | From | To |  |
+  | --- | --- | --- | --- | --- | --- |
+  | @effected/config-file | dependency | updated | ^0.3.1 | ^0.4.1 |  |
+  | @effected/github | dependency | updated | ^0.3.0 | ^0.4.1 |  |
   | @effected/github-actions | dependency | updated | ^0.6.0 | ^0.6.1 | [#179][#179] Thanks [@savvy-web-bot](https://github.com/apps/savvy-web-bot)! |
 
 ### Patch Changes
@@ -131,8 +148,8 @@ Thanks to [@savvy-web-bot](https://github.com/apps/savvy-web-bot) for their cont
 
 ### Dependencies
 
-* | Dependency            | Type       | Action  | From   | To     |                                                                              |
-  | --------------------- | ---------- | ------- | ------ | ------ | ---------------------------------------------------------------------------- |
+- | Dependency | Type | Action | From | To |  |
+  | --- | --- | --- | --- | --- | --- |
   | @effected/config-file | dependency | updated | ^0.3.0 | ^0.3.1 | [#176][#176] Thanks [@savvy-web-bot](https://github.com/apps/savvy-web-bot)! |
 
 ### Patch Changes
@@ -143,24 +160,23 @@ Thanks to [@savvy-web-bot](https://github.com/apps/savvy-web-bot) for their cont
 
 ### Dependencies
 
-* | Dependency                       | Type          | Action  | From           | To             |
-  | :------------------------------- | :------------ | :------ | :------------- | :------------- |
-  | effect                           | dependency    | updated | 4.0.0-beta.101 | 4.0.0-beta.107 |
-  | @effect/platform-node            | dependency    | updated | 4.0.0-beta.101 | 4.0.0-beta.107 |
-  | @effected/github-actions         | dependency    | updated | 0.5.1          | 0.6.0          |
-  | @effected/github                 | dependency    | updated | 0.2.3          | 0.3.0          |
-  | @effected/config-file            | dependency    | updated | 0.2.1          | 0.3.0          |
-  | @savvy-web/github-action-builder | devDependency | updated | 2.2.2          | 2.2.3          |
-  | @savvy-web/silk                  | devDependency | updated | 3.4.0          | 3.5.2          |
-  | @vitest-agent/plugin             | devDependency | updated | 2.0.13         | 2.0.16         |
-  | @effected/pnpm-plugin-effect     | config        | updated | 0.3.2          | 0.4.0          |
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effected/pnpm-plugin-effect | config | updated | 0.3.2 | 0.4.0 |
+| @effect/platform-node | dependency | updated | 4.0.0-beta.101 | 4.0.0-beta.107 |
+| @effected/config-file | dependency | updated | 0.2.1 | 0.3.0 |
+| @effected/github | dependency | updated | 0.2.3 | 0.3.0 |
+| @effected/github-actions | dependency | updated | 0.5.1 | 0.6.0 |
+| effect | dependency | updated | 4.0.0-beta.101 | 4.0.0-beta.107 |
+| @savvy-web/github-action-builder | devDependency | updated | 2.2.2 | 2.2.3 |
+| @savvy-web/silk | devDependency | updated | 3.4.0 | 3.5.2 |
+| @vitest-agent/plugin | devDependency | updated | 2.0.13 | 2.0.16 |
 
 ### Maintenance
 
-* Adopts the `effect@4.0.0-beta.107` coordinated release wave. The action's observable contract is unchanged — inputs, outputs, `action.yml`, the three-phase token lifecycle, the step summary and the per-repo error semantics all behave exactly as before.
-
-  * Domain errors now use `Schema.TaggedError`, which `beta.107` restored as the name for the construct previously called `Schema.TaggedErrorClass`. `DiscoveryError` and `InvalidInputError` keep identical shapes and messages.
-  * The published `silk.config.schema.json` names the shared optional-boolean union `OptionalBoolean` instead of leaving it to the compiler-generated key `Union_`. `beta.107` began hoisting any structurally identical anonymous subschema that occurs three or more times into a shared definition, so the repository-settings booleans are now emitted once and referenced by `$ref`. The schema validates exactly the same documents as before — inflating the references yields a byte-identical schema — but the definition key is now stable and meaningful in editor tooltips rather than a generated placeholder that could shift between releases. [#170][#170]
+- Adopts the `effect@4.0.0-beta.107` coordinated release wave. The action's observable contract is unchanged — inputs, outputs, `action.yml`, the three-phase token lifecycle, the step summary and the per-repo error semantics all behave exactly as before.
+  - Domain errors now use `Schema.TaggedError`, which `beta.107` restored as the name for the construct previously called `Schema.TaggedErrorClass`. `DiscoveryError` and `InvalidInputError` keep identical shapes and messages.
+  - The published `silk.config.schema.json` names the shared optional-boolean union `OptionalBoolean` instead of leaving it to the compiler-generated key `Union_`. `beta.107` began hoisting any structurally identical anonymous subschema that occurs three or more times into a shared definition, so the repository-settings booleans are now emitted once and referenced by `$ref`. The schema validates exactly the same documents as before — inflating the references yields a byte-identical schema — but the definition key is now stable and meaningful in editor tooltips rather than a generated placeholder that could shift between releases. [#170][#170]
 
 ### Minor Changes
 
@@ -172,32 +188,28 @@ Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributio
 
 ### Features
 
-* ### Ported to the `@effected` kit
-
+- ### Ported to the `@effected` kit
   This action's Effect-based runtime foundation has moved off the deprecated `@savvy-web/github-action-effects@3` package onto `@effected/github-actions`, `@effected/github`, and `@effected/config-file`, running on `effect@4.0.0-beta.101`.
 
   The action's consumer-facing contract is unchanged: all inputs and outputs, the three-phase pre/main/post lifecycle, and the generated `silk.config.schema.json` are identical. No workflow using this action needs to change anything.
-
   ### Wider `repos` input parsing
-
   The `repos` input now parses through a shared list parser that is a strict superset of the previous newline-splitting behavior. Every input that worked before still works identically. In addition to one repo per line, the input now also accepts:
-
-  * Bullet-prefixed lines (`- owner/repo`)
-  * Comma-separated values
-  * A JSON array of strings
+  - Bullet-prefixed lines (`- owner/repo`)
+  - Comma-separated values
+  - A JSON array of strings
 
 ### Performance
 
-* Reduced bundled action size: `dist/main.js` from 487 kB to 416 kB, `dist/pre.js` and `dist/post.js` from 468 kB to 284 kB [#164][#164]
+- Reduced bundled action size: `dist/main.js` from 487 kB to 416 kB, `dist/pre.js` and `dist/post.js` from 468 kB to 284 kB [#164][#164]
 
 ### Dependencies
 
-* | Dependency                       | Type       | Action  | From   | To     |                                                                       |
-  | -------------------------------- | ---------- | ------- | ------ | ------ | --------------------------------------------------------------------- |
-  | @savvy-web/github-action-effects | dependency | removed | ^3.1.0 | —      |                                                                       |
-  | @effected/config-file            | dependency | added   | —      | ^0.2.1 |                                                                       |
-  | @effected/github                 | dependency | added   | —      | ^0.2.3 |                                                                       |
-  | @effected/github-actions         | dependency | added   | —      | ^0.5.1 | [#164][#164] Thanks [@spencerbeggs](https://github.com/spencerbeggs)! |
+- | Dependency | Type | Action | From | To |  |
+  | --- | --- | --- | --- | --- | --- |
+  | @savvy-web/github-action-effects | dependency | removed | ^3.1.0 | — |  |
+  | @effected/config-file | dependency | added | — | ^0.2.1 |  |
+  | @effected/github | dependency | added | — | ^0.2.3 |  |
+  | @effected/github-actions | dependency | added | — | ^0.5.1 | [#164][#164] Thanks [@spencerbeggs](https://github.com/spencerbeggs)! |
 
 ### Patch Changes
 
@@ -209,8 +221,8 @@ Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributio
 
 ### Dependencies
 
-* | Dependency                       | Type       | Action  | From   | To     |                                                                              |
-  | -------------------------------- | ---------- | ------- | ------ | ------ | ---------------------------------------------------------------------------- |
+- | Dependency | Type | Action | From | To |  |
+  | --- | --- | --- | --- | --- | --- |
   | @savvy-web/github-action-effects | dependency | updated | ^3.0.5 | ^3.1.0 | [#150][#150] Thanks [@savvy-web-bot](https://github.com/apps/savvy-web-bot)! |
 
 ### Patch Changes
@@ -221,11 +233,11 @@ Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributio
 
 ### Dependencies
 
-* | Dependency                       | Type       | Action  | From          | To             |                                                                              |
-  | -------------------------------- | ---------- | ------- | ------------- | -------------- | ---------------------------------------------------------------------------- |
-  | @effect/platform-node            | dependency | updated | 4.0.0-beta.99 | 4.0.0-beta.101 |                                                                              |
-  | @savvy-web/github-action-effects | dependency | updated | ^3.0.4        | ^3.0.5         |                                                                              |
-  | effect                           | dependency | updated | 4.0.0-beta.99 | 4.0.0-beta.101 | [#147][#147] Thanks [@savvy-web-bot](https://github.com/apps/savvy-web-bot)! |
+- | Dependency | Type | Action | From | To |  |
+  | --- | --- | --- | --- | --- | --- |
+  | @effect/platform-node | dependency | updated | 4.0.0-beta.99 | 4.0.0-beta.101 |  |
+  | @savvy-web/github-action-effects | dependency | updated | ^3.0.4 | ^3.0.5 |  |
+  | effect | dependency | updated | 4.0.0-beta.99 | 4.0.0-beta.101 | [#147][#147] Thanks [@savvy-web-bot](https://github.com/apps/savvy-web-bot)! |
 
 ### Patch Changes
 
@@ -235,11 +247,11 @@ Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributio
 
 ### Dependencies
 
-* | Dependency                       | Type       | Action  | From          | To            |                                                                              |
-  | -------------------------------- | ---------- | ------- | ------------- | ------------- | ---------------------------------------------------------------------------- |
-  | @effect/platform-node            | dependency | updated | 4.0.0-beta.98 | 4.0.0-beta.99 |                                                                              |
-  | @savvy-web/github-action-effects | dependency | updated | ^3.0.1        | ^3.0.4        |                                                                              |
-  | effect                           | dependency | updated | 4.0.0-beta.98 | 4.0.0-beta.99 | [#140][#140] Thanks [@savvy-web-bot](https://github.com/apps/savvy-web-bot)! |
+- | Dependency | Type | Action | From | To |  |
+  | --- | --- | --- | --- | --- | --- |
+  | @effect/platform-node | dependency | updated | 4.0.0-beta.98 | 4.0.0-beta.99 |  |
+  | @savvy-web/github-action-effects | dependency | updated | ^3.0.1 | ^3.0.4 |  |
+  | effect | dependency | updated | 4.0.0-beta.98 | 4.0.0-beta.99 | [#140][#140] Thanks [@savvy-web-bot](https://github.com/apps/savvy-web-bot)! |
 
 ### Patch Changes
 
@@ -249,25 +261,25 @@ Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributio
 
 ### Refactoring
 
-* Migrates the entire action runtime to Effect v4. Schema definitions were rewritten against the v4 API surface — `Schema.Literals` for enumerated unions, `.check(...)` filters in place of `.pipe(Schema.filter)`, and `Schema.TaggedErrorClass` for typed errors. Layer wiring moved to `effect/unstable/http` and `NodeServices.layer`. The build-time JSON Schema generator (`lib/scripts/generate-schema.ts`) was ported to the v4 emitter (`toDocumentDraft07`/`toJsonSchemaDocument`); the generated `silk.config.schema.json` shape shifted accordingly — draft-07 `definitions` + `$ref` with nullable fields expressed as `anyOf[T, null]`. Discovery, sync, and reporting logic are otherwise unchanged. The action's `action.yml` inputs and outputs are unchanged.
+- Migrates the entire action runtime to Effect v4. Schema definitions were rewritten against the v4 API surface — `Schema.Literals` for enumerated unions, `.check(...)` filters in place of `.pipe(Schema.filter)`, and `Schema.TaggedErrorClass` for typed errors. Layer wiring moved to `effect/unstable/http` and `NodeServices.layer`. The build-time JSON Schema generator (`lib/scripts/generate-schema.ts`) was ported to the v4 emitter (`toDocumentDraft07`/`toJsonSchemaDocument`); the generated `silk.config.schema.json` shape shifted accordingly — draft-07 `definitions` + `$ref` with nullable fields expressed as `anyOf[T, null]`. Discovery, sync, and reporting logic are otherwise unchanged. The action's `action.yml` inputs and outputs are unchanged.
 
 ### Build System
 
-* Production bundles shrank from \~780 kB to \~487 kB per entry point (`dist/pre.js`, `dist/main.js`, `dist/post.js`). All 43 tests pass; the build is clean. [#130][#130]
+- Production bundles shrank from \~780 kB to \~487 kB per entry point (`dist/pre.js`, `dist/main.js`, `dist/post.js`). All 43 tests pass; the build is clean. [#130][#130]
 
 ### Dependencies
 
-* | Dependency                       | Type          | Action  | From    | To            |
-  | :------------------------------- | :------------ | :------ | :------ | :------------ |
-  | effect                           | dependency    | updated | ^3.22.0 | 4.0.0-beta.98 |
-  | @effect/platform-node            | dependency    | updated | ^0.96.3 | 4.0.0-beta.98 |
-  | @effect/platform                 | dependency    | removed | ^0.96.3 | —             |
-  | @savvy-web/github-action-effects | dependency    | updated | ^2.4.0  | ^3.0.1        |
-  | @savvy-web/github-action-builder | devDependency | updated | ^1.1.2  | ^2.0.2        |
-  | @savvy-web/silk                  | devDependency | updated | ^2.4.4  | ^3.0.2        |
-  | @vitest-agent/plugin             | devDependency | updated | ^1.1.9  | ^2.0.0        |
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effect/platform | dependency | removed | ^0.96.3 | — |
+| @effect/platform-node | dependency | updated | ^0.96.3 | 4.0.0-beta.98 |
+| @savvy-web/github-action-effects | dependency | updated | ^2.4.0 | ^3.0.1 |
+| effect | dependency | updated | ^3.22.0 | 4.0.0-beta.98 |
+| @savvy-web/github-action-builder | devDependency | updated | ^1.1.2 | ^2.0.2 |
+| @savvy-web/silk | devDependency | updated | ^2.4.4 | ^3.0.2 |
+| @vitest-agent/plugin | devDependency | updated | ^1.1.9 | ^2.0.0 |
 
-  `effect` and `@effect/platform-node` now resolve through `catalog:effect`; `@effect/platform` is dropped because its modules moved into `effect` core.
+- `effect` and `@effect/platform-node` now resolve through `catalog:effect`; `@effect/platform` is dropped because its modules moved into `effect` core.
 
 ### Minor Changes
 
@@ -279,8 +291,8 @@ Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributio
 
 ### Dependencies
 
-* | Dependency                       | Type       | Action  | From   | To     |                                                                              |
-  | -------------------------------- | ---------- | ------- | ------ | ------ | ---------------------------------------------------------------------------- |
+- | Dependency | Type | Action | From | To |  |
+  | --- | --- | --- | --- | --- | --- |
   | @savvy-web/github-action-effects | dependency | updated | ^2.3.7 | ^2.4.0 | [#114][#114] Thanks [@savvy-web-bot](https://github.com/apps/savvy-web-bot)! |
 
 ### Patch Changes
@@ -291,13 +303,13 @@ Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributio
 
 ### Dependencies
 
-* | Dependency                       | Type          | Action  | From    | To            |
-  | :------------------------------- | :------------ | :------ | :------ | :------------ |
-  | @savvy-web/silk                  | devDependency | updated | ^1.3.11 | ^2.0.0        |
-  | @savvy-web/github-action-builder | devDependency | updated | ^1.0.3  | ^1.1.0        |
-  | @changesets/cli                  | devDependency | added   | —       | ^3.0.0-next.8 |
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @savvy-web/github-action-builder | devDependency | updated | ^1.0.3 | ^1.1.0 |
+| @savvy-web/silk | devDependency | updated | ^1.3.11 | ^2.0.0 |
+| @changesets/cli | devDependency | added | — | ^3.0.0-next.8 |
 
-  `@savvy-web/silk` 2.0.0 brings silk-effects 3.0.0 (changesets v3 `next` engine). `@changesets/cli` is now declared explicitly to satisfy silk's new peer range. No source changes required — this action uses no silk-effects surfaces and the bundled output is unchanged. [#107][#107]
+- `@savvy-web/silk` 2.0.0 brings silk-effects 3.0.0 (changesets v3 `next` engine). `@changesets/cli` is now declared explicitly to satisfy silk's new peer range. No source changes required — this action uses no silk-effects surfaces and the bundled output is unchanged. [#107][#107]
 
 ### Patch Changes
 
@@ -309,91 +321,91 @@ Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributio
 
 ### Dependencies
 
-* | Dependency                       | Type       | Action  | From   | To     |
-  | -------------------------------- | ---------- | ------- | ------ | ------ |
-  | @savvy-web/github-action-effects | dependency | updated | ^2.3.3 | ^2.3.5 |
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @savvy-web/github-action-effects | dependency | updated | ^2.3.3 | ^2.3.5 |
 
 ## 1.0.8
 
 ### Bug Fixes
 
-* [`292ee7a`](https://github.com/savvy-web/silk-sync-action/commit/292ee7aaad6d6eacc3b7f5ed21caa6179372ae12) Explicitly declare `@types/node` version.
+- [`292ee7a`](https://github.com/savvy-web/silk-sync-action/commit/292ee7aaad6d6eacc3b7f5ed21caa6179372ae12) Explicitly declare `@types/node` version.
 
 ## 1.0.7
 
 ### Dependencies
 
-* [`14b047b`](https://github.com/savvy-web/silk-sync-action/commit/14b047b7425677f020b9038453b22ec773f6cea7) | Dependency | Type | Action | From | To |
-  \| :------------------------------- | :------------ | :------ | :----- | :----- |
-  \| @savvy-web/github-action-effects | dependency | updated | ^2.3.1 | ^2.3.3 |
-  \| @savvy-web/github-action-builder | devDependency | updated | ^0.8.0 | ^1.0.1 |
-  \| @savvy-web/silk | devDependency | updated | ^1.3.4 | ^1.3.5 |
+- [`14b047b`](https://github.com/savvy-web/silk-sync-action/commit/14b047b7425677f020b9038453b22ec773f6cea7) \| Dependency \| Type \| Action \| From \| To \|
+  \| :------------------------------- \| :------------ \| :------ \| :----- \| :----- \|
+  \| @savvy-web/github-action-effects \| dependency \| updated \| ^2.3.1 \| ^2.3.3 \|
+  \| @savvy-web/github-action-builder \| devDependency \| updated \| ^0.8.0 \| ^1.0.1 \|
+  \| @savvy-web/silk \| devDependency \| updated \| ^1.3.4 \| ^1.3.5 \|
 
 ## 1.0.6
 
 ### Dependencies
 
-* | [`7a5b088`](https://github.com/savvy-web/silk-sync-action/commit/7a5b0887f354372ca254d4b51479e3ac80b06ce4) | Dependency    | Type    | Action | From   | To |
-  | :--------------------------------------------------------------------------------------------------------- | :------------ | :------ | :----- | :----- | -- |
-  | @savvy-web/github-action-effects                                                                           | dependency    | updated | ^2.3.0 | ^2.3.1 |    |
-  | @savvy-web/silk                                                                                            | devDependency | updated | ^1.3.3 | ^1.3.4 |    |
+- | [`7a5b088`](https://github.com/savvy-web/silk-sync-action/commit/7a5b0887f354372ca254d4b51479e3ac80b06ce4) | Dependency | Type | Action | From | To |
+  | :-- | :-- | :-- | :-- | :-- | --- |
+  | @savvy-web/github-action-effects | dependency | updated | ^2.3.0 | ^2.3.1 |  |
+  | @savvy-web/silk | devDependency | updated | ^1.3.3 | ^1.3.4 |  |
 
 ## 1.0.5
 
 ### Dependencies
 
-* | [`1517343`](https://github.com/savvy-web/silk-sync-action/commit/1517343414d80b4dd023d518e47a63717a5dd820) | Dependency    | Type    | Action  | From    | To |
-  | :--------------------------------------------------------------------------------------------------------- | :------------ | :------ | :------ | :------ | -- |
-  | @effect/platform                                                                                           | dependency    | updated | ^0.96.1 | ^0.96.2 |    |
-  | effect                                                                                                     | dependency    | updated | ^3.21.3 | ^3.21.4 |    |
-  | @savvy-web/github-action-effects                                                                           | dependency    | updated | ^2.1.4  | ^2.3.0  |    |
-  | @savvy-web/github-action-builder                                                                           | devDependency | updated | ^0.7.8  | ^0.8.0  |    |
-  | @savvy-web/silk                                                                                            | devDependency | updated | ^1.0.0  | ^1.3.3  |    |
-  | @savvy-web/vitest                                                                                          | devDependency | updated | ^1.5.0  | ^1.6.0  |    |
+- | [`1517343`](https://github.com/savvy-web/silk-sync-action/commit/1517343414d80b4dd023d518e47a63717a5dd820) | Dependency | Type | Action | From | To |
+  | :-- | :-- | :-- | :-- | :-- | --- |
+  | @effect/platform | dependency | updated | ^0.96.1 | ^0.96.2 |  |
+  | effect | dependency | updated | ^3.21.3 | ^3.21.4 |  |
+  | @savvy-web/github-action-effects | dependency | updated | ^2.1.4 | ^2.3.0 |  |
+  | @savvy-web/github-action-builder | devDependency | updated | ^0.7.8 | ^0.8.0 |  |
+  | @savvy-web/silk | devDependency | updated | ^1.0.0 | ^1.3.3 |  |
+  | @savvy-web/vitest | devDependency | updated | ^1.5.0 | ^1.6.0 |  |
 
 ## 1.0.4
 
 ### Dependencies
 
-* | [`c14eda9`](https://github.com/savvy-web/silk-sync-action/commit/c14eda9b6106a15b29bbcfff2d7ef6d735bce496) | Dependency    | Type    | Action | From   | To |
-  | :--------------------------------------------------------------------------------------------------------- | :------------ | :------ | :----- | :----- | -- |
-  | @savvy-web/github-action-effects                                                                           | dependency    | updated | ^2.1.3 | ^2.1.4 |    |
-  | @savvy-web/github-action-builder                                                                           | devDependency | updated | ^0.7.6 | ^0.7.8 |    |
-  | @savvy-web/silk                                                                                            | devDependency | updated | ^0.4.0 | ^0.4.2 |    |
-  | @savvy-web/vitest                                                                                          | devDependency | updated | ^1.4.0 | ^1.5.0 |    |
+- | [`c14eda9`](https://github.com/savvy-web/silk-sync-action/commit/c14eda9b6106a15b29bbcfff2d7ef6d735bce496) | Dependency | Type | Action | From | To |
+  | :-- | :-- | :-- | :-- | :-- | --- |
+  | @savvy-web/github-action-effects | dependency | updated | ^2.1.3 | ^2.1.4 |  |
+  | @savvy-web/github-action-builder | devDependency | updated | ^0.7.6 | ^0.7.8 |  |
+  | @savvy-web/silk | devDependency | updated | ^0.4.0 | ^0.4.2 |  |
+  | @savvy-web/vitest | devDependency | updated | ^1.4.0 | ^1.5.0 |  |
 
-- | [`c87645d`](https://github.com/savvy-web/silk-sync-action/commit/c87645d280260f66c1cc0374db382000e21bd717) | Dependency    | Type    | Action   | From     | To |
-  | :--------------------------------------------------------------------------------------------------------- | :------------ | :------ | :------- | :------- | -- |
-  | @effect/platform-node                                                                                      | dependency    | updated | ^0.106.0 | ^0.107.0 |    |
-  | effect                                                                                                     | dependency    | updated | ^3.21.2  | ^3.21.3  |    |
-  | @savvy-web/silk                                                                                            | devDependency | updated | ^0.4.2   | ^1.0.0   |    |
+* | [`c87645d`](https://github.com/savvy-web/silk-sync-action/commit/c87645d280260f66c1cc0374db382000e21bd717) | Dependency | Type | Action | From | To |
+  | :-- | :-- | :-- | :-- | :-- | --- |
+  | @effect/platform-node | dependency | updated | ^0.106.0 | ^0.107.0 |  |
+  | effect | dependency | updated | ^3.21.2 | ^3.21.3 |  |
+  | @savvy-web/silk | devDependency | updated | ^0.4.2 | ^1.0.0 |  |
 
 ## 1.0.3
 
 ### Other
 
-* [`daf4b41`](https://github.com/savvy-web/silk-sync-action/commit/daf4b4138bdd0d5e7f6c5c9b844bb42147d92147) Upgrade to silk-release-action\@v2.
+- [`daf4b41`](https://github.com/savvy-web/silk-sync-action/commit/daf4b4138bdd0d5e7f6c5c9b844bb42147d92147) Upgrade to silk-release-action@v2.
 
 ## 1.0.2
 
 ### Other
 
-* [`61270e0`](https://github.com/savvy-web/silk-sync-action/commit/61270e044188f8208e9f0433e26073ad1a732758) Upgrade to `@savvy-web/silk` dependency system
+- [`61270e0`](https://github.com/savvy-web/silk-sync-action/commit/61270e044188f8208e9f0433e26073ad1a732758) Upgrade to `@savvy-web/silk` dependency system
 
 ## 1.0.1
 
 ### Dependencies
 
-* | [`b4e4c93`](https://github.com/savvy-web/silk-sync-action/commit/b4e4c93f3604610999e62abdfd75e1e1fb1800e1) | Dependency    | Type    | Action | From   | To |
-  | :--------------------------------------------------------------------------------------------------------- | :------------ | :------ | :----- | :----- | -- |
-  | @savvy-web/github-action-effects                                                                           | dependency    | updated | ^2.0.1 | ^2.0.2 |    |
-  | @savvy-web/github-action-builder                                                                           | devDependency | updated | ^0.7.1 | ^0.7.2 |    |
+- | [`b4e4c93`](https://github.com/savvy-web/silk-sync-action/commit/b4e4c93f3604610999e62abdfd75e1e1fb1800e1) | Dependency | Type | Action | From | To |
+  | :-- | :-- | :-- | :-- | :-- | --- |
+  | @savvy-web/github-action-effects | dependency | updated | ^2.0.1 | ^2.0.2 |  |
+  | @savvy-web/github-action-builder | devDependency | updated | ^0.7.1 | ^0.7.2 |  |
 
 ## 1.0.0
 
 ### Breaking Changes
 
-* [`0a11d7d`](https://github.com/savvy-web/silk-sync-action/commit/0a11d7dea552f1bb5a3b1db6a45d761636cf9034) ### Input `app-id` renamed to `app-client-id`
+- [`0a11d7d`](https://github.com/savvy-web/silk-sync-action/commit/0a11d7dea552f1bb5a3b1db6a45d761636cf9034) ### Input `app-id` renamed to `app-client-id`
 
 The action input previously named `app-id` is now `app-client-id`. Workflows that pass the GitHub App identifier must update their `with:` block.
 
@@ -411,16 +423,16 @@ The action input previously named `app-id` is now `app-client-id`. Workflows tha
 
 ### Features
 
-* [`0a11d7d`](https://github.com/savvy-web/silk-sync-action/commit/0a11d7dea552f1bb5a3b1db6a45d761636cf9034) ### New scalar outputs
+- [`0a11d7d`](https://github.com/savvy-web/silk-sync-action/commit/0a11d7dea552f1bb5a3b1db6a45d761636cf9034) ### New scalar outputs
 
 Four scalar outputs are now emitted alongside the existing `results` JSON output:
 
-| Output            | Type                 | Description                                   |
-| :---------------- | :------------------- | :-------------------------------------------- |
-| `success`         | `"true"` / `"false"` | Whether all repositories synced without error |
-| `repos-total`     | number string        | Total repositories discovered                 |
-| `repos-succeeded` | number string        | Repositories synced successfully              |
-| `repos-failed`    | number string        | Repositories that encountered errors          |
+| Output | Type | Description |
+| :-- | :-- | :-- |
+| `success` | `"true"` / `"false"` | Whether all repositories synced without error |
+| `repos-total` | number string | Total repositories discovered |
+| `repos-succeeded` | number string | Repositories synced successfully |
+| `repos-failed` | number string | Repositories that encountered errors |
 
 ```yaml
 - id: sync
@@ -449,131 +461,119 @@ Token provisioning, permission verification, and revocation are now managed by `
 
 ### Dependencies
 
-* | [`612d2b7`](https://github.com/savvy-web/silk-sync-action/commit/612d2b7d624c4964c1bf4f35aa4b893e84c48d72) | Dependency | Type    | Action | From   | To |
-  | :--------------------------------------------------------------------------------------------------------- | :--------- | :------ | :----- | :----- | -- |
-  | @savvy-web/changesets                                                                                      | dependency | updated | ^0.4.2 | ^0.5.3 |    |
-  | @savvy-web/commitlint                                                                                      | dependency | updated | ^0.4.0 | ^0.4.2 |    |
-  | @savvy-web/github-action-builder                                                                           | dependency | updated | ^0.2.1 | ^0.4.0 |    |
-  | @savvy-web/lint-staged                                                                                     | dependency | updated | ^0.5.0 | ^0.6.1 |    |
-  | @savvy-web/vitest                                                                                          | dependency | updated | ^0.2.0 | ^0.2.2 |    |
+- | [`612d2b7`](https://github.com/savvy-web/silk-sync-action/commit/612d2b7d624c4964c1bf4f35aa4b893e84c48d72) | Dependency | Type | Action | From | To |
+  | :-- | :-- | :-- | :-- | :-- | --- |
+  | @savvy-web/changesets | dependency | updated | ^0.4.2 | ^0.5.3 |  |
+  | @savvy-web/commitlint | dependency | updated | ^0.4.0 | ^0.4.2 |  |
+  | @savvy-web/github-action-builder | dependency | updated | ^0.2.1 | ^0.4.0 |  |
+  | @savvy-web/lint-staged | dependency | updated | ^0.5.0 | ^0.6.1 |  |
+  | @savvy-web/vitest | dependency | updated | ^0.2.0 | ^0.2.2 |  |
 
-- | [`bac8b5c`](https://github.com/savvy-web/silk-sync-action/commit/bac8b5cbb4e94a716b478bd4261c181b2a1b608e) | Dependency    | Type    | Action | From   | To |
-  | :--------------------------------------------------------------------------------------------------------- | :------------ | :------ | :----- | :----- | -- |
-  | @savvy-web/changesets                                                                                      | devDependency | updated | ^0.5.3 | ^0.7.0 |    |
-  | @savvy-web/commitlint                                                                                      | devDependency | updated | ^0.4.2 | ^0.4.3 |    |
-  | @savvy-web/github-action-builder                                                                           | devDependency | updated | ^0.4.0 | ^0.6.0 |    |
-  | @savvy-web/lint-staged                                                                                     | devDependency | updated | ^0.6.1 | ^0.6.4 |    |
-  | @savvy-web/vitest                                                                                          | devDependency | updated | ^0.2.2 | ^1.0.1 |    |
+* | [`bac8b5c`](https://github.com/savvy-web/silk-sync-action/commit/bac8b5cbb4e94a716b478bd4261c181b2a1b608e) | Dependency | Type | Action | From | To |
+  | :-- | :-- | :-- | :-- | :-- | --- |
+  | @savvy-web/changesets | devDependency | updated | ^0.5.3 | ^0.7.0 |  |
+  | @savvy-web/commitlint | devDependency | updated | ^0.4.2 | ^0.4.3 |  |
+  | @savvy-web/github-action-builder | devDependency | updated | ^0.4.0 | ^0.6.0 |  |
+  | @savvy-web/lint-staged | devDependency | updated | ^0.6.1 | ^0.6.4 |  |
+  | @savvy-web/vitest | devDependency | updated | ^0.2.2 | ^1.0.1 |  |
 
 ## 0.1.3
 
 ### Dependencies
 
-* [`2a68201`](https://github.com/savvy-web/silk-sync-action/commit/2a6820132474782317b449d50f2351ae048f12ad) @savvy-web/changesets: ^0.1.1 → ^0.4.1
-* @savvy-web/commitlint: ^0.3.3 → ^0.4.0
-* @savvy-web/github-action-builder: ^0.1.4 → ^0.2.0
-* @savvy-web/lint-staged: ^0.4.5 → ^0.5.0
-* @savvy-web/vitest: ^0.1.0 → ^0.2.0
+- [`2a68201`](https://github.com/savvy-web/silk-sync-action/commit/2a6820132474782317b449d50f2351ae048f12ad) @savvy-web/changesets: ^0.1.1 → ^0.4.1
+- @savvy-web/commitlint: ^0.3.3 → ^0.4.0
+- @savvy-web/github-action-builder: ^0.1.4 → ^0.2.0
+- @savvy-web/lint-staged: ^0.4.5 → ^0.5.0
+- @savvy-web/vitest: ^0.1.0 → ^0.2.0
 
 ## 0.1.2
 
 ### Features
 
-* [`a64f68e`](https://github.com/savvy-web/silk-sync-action/commit/a64f68e42f250f53fb5152b7e128f31a1695f1b7) Supports @savvy-web/vitest
+- [`a64f68e`](https://github.com/savvy-web/silk-sync-action/commit/a64f68e42f250f53fb5152b7e128f31a1695f1b7) Supports @savvy-web/vitest
 
 ## 0.1.1
 
 ### Patch Changes
 
-* 1938248: ## Features
+- 1938248: ## Features
 
-  * Support for @savvy-web/changesets
+  - Support for @savvy-web/changesets
 
-* b949191: Update dependencies:
+- b949191: Update dependencies:
 
   **Dependencies:**
 
-  * @savvy-web/commitlint: ^0.3.1 → ^0.3.2
+  - @savvy-web/commitlint: ^0.3.1 → ^0.3.2
 
-* 4f26108: ## Dependencies
-  * @savvy-web/lint-staged: ^0.3.2 → ^0.4.0
+- 4f26108: ## Dependencies
+
+  - @savvy-web/lint-staged: ^0.3.2 → ^0.4.0
 
 ## 0.1.0
 
 ### Minor Changes
 
-* 3f73aed: Initial implementation of the Silk Sync Action, migrated from an inline
-  `actions/github-script` workflow to a compiled TypeScript GitHub Action.
-
+- 3f73aed: Initial implementation of the Silk Sync Action, migrated from an inline&#10;`actions/github-script` workflow to a compiled TypeScript GitHub Action.
   ### Three-phase action execution
-
-  * **Pre step** (`src/pre.ts`): Parses action inputs, generates a GitHub App
+  - **Pre step** (`src/pre.ts`): Parses action inputs, generates a GitHub App
     installation token, loads and validates the silk config file, and saves state
     for subsequent steps.
-  * **Main step** (`src/main.ts`): Discovers target repositories, syncs labels,
+  - **Main step** (`src/main.ts`): Discovers target repositories, syncs labels,
     repository settings, and GitHub Projects V2 linking, then generates console
     and summary reports.
-  * **Post step** (`src/post.ts`): Revokes the installation token and logs
+  - **Post step** (`src/post.ts`): Revokes the installation token and logs
     total run duration.
 
   ### Repository discovery
-
   Two combinable discovery modes (union):
-
-  * **Custom properties**: Discovers repos via GitHub org custom properties with
+  - **Custom properties**: Discovers repos via GitHub org custom properties with
     AND logic across multiple key=value pairs.
-  * **Explicit repos**: Accepts a multiline list of repository names for personal
+  - **Explicit repos**: Accepts a multiline list of repository names for personal
     accounts or orgs without custom properties.
 
   ### Sync capabilities
-
-  * **Labels**: Creates, updates, and optionally removes labels to match config.
+  - **Labels**: Creates, updates, and optionally removes labels to match config.
     Case-insensitive matching with color and description enforcement.
-  * **Settings**: Enforces repository settings (merge strategies, wiki, issues,
+  - **Settings**: Enforces repository settings (merge strategies, wiki, issues,
     projects, discussions, auto-merge, branch deletion, signoff requirements).
-  * **Projects**: Links repositories to GitHub Projects V2 via GraphQL, with
+  - **Projects**: Links repositories to GitHub Projects V2 via GraphQL, with
     optional backfill of open issues and pull requests as project items.
 
   ### Effect-TS architecture
-
-  * Type-safe error handling with `Schema.TaggedError` and error accumulation
+  - Type-safe error handling with `Schema.TaggedError` and error accumulation
     (per-repo failures do not halt the run).
-  * Dependency injection via `Context.Tag` services (`GitHubRestClient`,
-    `GitHubGraphQLClient`) with `Layer`-based composition.
-  * Entry points use `NodeRuntime.runMain` from `@effect/platform-node`.
-  * All domain types defined as Effect Schemas with runtime validation.
+  - Dependency injection via `Context.Tag` services (`GitHubRestClient`,&#10;`GitHubGraphQLClient`) with `Layer`-based composition.
+  - Entry points use `NodeRuntime.runMain` from `@effect/platform-node`.
+  - All domain types defined as Effect Schemas with runtime validation.
 
   ### Build and tooling
-
-  * Bundled with `@vercel/ncc` via `@savvy-web/github-action-builder` producing
-    `dist/pre.js`, `dist/main.js`, `dist/post.js`.
-  * Turbo build pipeline: `types:check` -> `generate:schema` -> `build:prod`.
-  * JSON Schema (`silk.config.schema.json`) generated from Effect Schema at build
+  - Bundled with `@vercel/ncc` via `@savvy-web/github-action-builder` producing&#10;`dist/pre.js`, `dist/main.js`, `dist/post.js`.
+  - Turbo build pipeline: `types:check` -\> `generate:schema` -\> `build:prod`.
+  - JSON Schema (`silk.config.schema.json`) generated from Effect Schema at build
     time for config file editor support.
-  * `action.yml` validated via `github-action-builder validate`.
+  - `action.yml` validated via `github-action-builder validate`.
 
   ### Testing
-
-  * 116 tests across 12 test files covering schemas, config loading, input
+  - 116 tests across 12 test files covering schemas, config loading, input
     parsing, label sync, settings sync, project sync, discovery, rate limiting,
     and reporting.
-  * All library modules at 80%+ coverage.
+  - All library modules at 80%+ coverage.
 
   ### Documentation
-
-  * Full README with usage examples, inputs/outputs tables, and configuration
+  - Full README with usage examples, inputs/outputs tables, and configuration
     guide.
-  * Architecture design doc at `.claude/design/silk-sync-action/architecture.md`.
-  * CONTRIBUTING.md and SECURITY.md updated for this project.
+  - Architecture design doc at `.claude/design/silk-sync-action/architecture.md`.
+  - CONTRIBUTING.md and SECURITY.md updated for this project.
 
 ## 0.0.1
 
 ### Patch Changes
 
-* ae454d3: Update dependencies:
+- ae454d3: Update dependencies:
 
   **Dependencies:**
-
-  * @savvy-web/commitlint: ^0.2.0 → ^0.2.1
-  * @savvy-web/lint-staged: ^0.1.3 → ^0.2.1
-  * @savvy-web/rslib-builder: ^0.11.0 → ^0.12.0
+  - @savvy-web/commitlint: ^0.2.0 → ^0.2.1
+  - @savvy-web/lint-staged: ^0.1.3 → ^0.2.1
+  - @savvy-web/rslib-builder: ^0.11.0 → ^0.12.0
