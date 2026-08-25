@@ -1,5 +1,22 @@
 # @savvy-web/pnpm-module-template
 
+## 1.4.9
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effected/config-file | dependency | updated | ^0.5.1 | ^0.5.2 |
+| @effected/github-actions | dependency | updated | ^0.10.0 | ^0.10.1 |
+
+[#236][#236]
+
+### Thanks
+
+Thanks to [@savvy-web-bot](https://github.com/apps/savvy-web-bot) for their contributions!
+
+[#236]: https://github.com/savvy-web/silk-sync-action/pull/236
+
 ## 1.4.8
 
 ### Dependencies
