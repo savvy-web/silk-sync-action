@@ -1,5 +1,25 @@
 # @savvy-web/pnpm-module-template
 
+## 1.4.11
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effect/platform-node | dependency | updated | 4.0.0-rc.109 | 4.0.0-rc.112 |
+| @effected/config-file | dependency | updated | ^0.5.2 | ^0.6.0 |
+| @effected/github | dependency | updated | ^0.8.0 | ^0.9.0 |
+| @effected/github-actions | dependency | updated | ^0.10.2 | ^0.11.0 |
+| effect | dependency | updated | 4.0.0-rc.109 | 4.0.0-rc.112 |
+
+[#283][#283]
+
+### Thanks
+
+Thanks to [@savvy-web-bot](https://github.com/apps/savvy-web-bot) for their contributions!
+
+[#283]: https://github.com/savvy-web/silk-sync-action/pull/283
+
 ## 1.4.10
 
 ### Dependencies
@@ -583,7 +603,7 @@ Token provisioning, permission verification, and revocation are now managed by `
 
   ### Build and tooling
   - Bundled with `@vercel/ncc` via `@savvy-web/github-action-builder` producing&#10;`dist/pre.js`, `dist/main.js`, `dist/post.js`.
-  - Turbo build pipeline: `types:check` -\> `generate:schema` -\> `build:prod`.
+  - Turbo build pipeline: `types:check` -> `generate:schema` -> `build:prod`.
   - JSON Schema (`silk.config.schema.json`) generated from Effect Schema at build
     time for config file editor support.
   - `action.yml` validated via `github-action-builder validate`.
