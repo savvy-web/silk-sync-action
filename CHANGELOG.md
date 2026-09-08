@@ -1,5 +1,15 @@
 # @savvy-web/pnpm-module-template
 
+## 1.4.12
+
+### Maintenance
+
+- Bumps effected kit to the latest version.
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
 ## 1.4.11
 
 ### Dependencies
