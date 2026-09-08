@@ -22,7 +22,7 @@ export default defineConfig({
 		ignore: ["xmlbuilder2", "libxmljs2", "ajv-formats-draft2019"],
 	},
 	persistLocal: {
-		enabled: true,
+		enabled: false,
 		path: ".github/actions/local",
 	},
 });
