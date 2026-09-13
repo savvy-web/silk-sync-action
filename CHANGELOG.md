@@ -1,5 +1,17 @@
 # @savvy-web/pnpm-module-template
 
+## 1.4.13
+
+### Maintenance
+
+- Upgrades core kit. [#294][#294]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#294]: https://github.com/savvy-web/silk-sync-action/pull/294
+
 ## 1.4.12
 
 ### Maintenance
@@ -578,7 +590,8 @@ Token provisioning, permission verification, and revocation are now managed by `
 
 ### Minor Changes
 
-- 3f73aed: Initial implementation of the Silk Sync Action, migrated from an inline&#10;`actions/github-script` workflow to a compiled TypeScript GitHub Action.
+- 3f73aed: Initial implementation of the Silk Sync Action, migrated from an inline
+  `actions/github-script` workflow to a compiled TypeScript GitHub Action.
   ### Three-phase action execution
   - **Pre step** (`src/pre.ts`): Parses action inputs, generates a GitHub App
     installation token, loads and validates the silk config file, and saves state
@@ -607,12 +620,14 @@ Token provisioning, permission verification, and revocation are now managed by `
   ### Effect-TS architecture
   - Type-safe error handling with `Schema.TaggedError` and error accumulation
     (per-repo failures do not halt the run).
-  - Dependency injection via `Context.Tag` services (`GitHubRestClient`,&#10;`GitHubGraphQLClient`) with `Layer`-based composition.
+  - Dependency injection via `Context.Tag` services (`GitHubRestClient`,
+    `GitHubGraphQLClient`) with `Layer`-based composition.
   - Entry points use `NodeRuntime.runMain` from `@effect/platform-node`.
   - All domain types defined as Effect Schemas with runtime validation.
 
   ### Build and tooling
-  - Bundled with `@vercel/ncc` via `@savvy-web/github-action-builder` producing&#10;`dist/pre.js`, `dist/main.js`, `dist/post.js`.
+  - Bundled with `@vercel/ncc` via `@savvy-web/github-action-builder` producing
+    `dist/pre.js`, `dist/main.js`, `dist/post.js`.
   - Turbo build pipeline: `types:check` -> `generate:schema` -> `build:prod`.
   - JSON Schema (`silk.config.schema.json`) generated from Effect Schema at build
     time for config file editor support.
