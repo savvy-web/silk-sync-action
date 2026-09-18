@@ -86,8 +86,8 @@ importers:
         specifier: ^4.2.2
         version: 4.2.2(@changesets/cli@3.0.3)(@commitlint/cli@21.2.2(@types/node@26.6.1)(conventional-commits-parser@7.1.2)(typescript@7.0.2))(@commitlint/config-conventional@21.2.2)(@types/bun@1.4.2)(@types/node@26.6.1)(@vitest/coverage-istanbul@5.0.1)(@vitest/coverage-v8@5.0.1)(@vitest/expect@5.0.1)(husky@9.1.7)(lint-staged@17.5.1)(markdownlint-cli2-formatter-codequality@0.0.7(markdownlint-cli2@0.23.2))(markdownlint-cli2@0.23.2)(redis@6.2.1)(tsx@4.23.13)(turbo@2.10.13)(typescript@7.0.2)(vite@8.3.0(@types/node@26.6.1)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.1))(vitest@5.0.1)
       '@vitest-agent/plugin':
-        specifier: ^4.1.0
-        version: 4.1.0(@vitest/coverage-istanbul@5.0.1)(@vitest/coverage-v8@5.0.1)(redis@6.2.1)(vitest@5.0.1)
+        specifier: ^4.1.1
+        version: 4.1.1(@vitest/coverage-istanbul@5.0.1)(@vitest/coverage-v8@5.0.1)(redis@6.2.1)(vitest@5.0.1)
 
 packages:
 
@@ -1470,24 +1470,24 @@ packages:
     resolution: {integrity: sha512-edSdeAqkdxBVzA1yL1LrLCml1YjyCVvPMtMqJpbF+6K609tHe8V6sQUzFQSGcYNhcuhOceZtjvN32+mpIth30A==}
     engines: {node: '>=22.0.0'}
 
-  '@vitest-agent/cli@3.1.0':
-    resolution: {integrity: sha512-RpbYDKLlUM8tTb45K/9PGxrx+j/zxQavkWw01M8fXIRoTaKwBDL1P9zBrSCvdtYEWAtrkcAQ5TqRsOnrlH7BDw==}
+  '@vitest-agent/cli@3.1.1':
+    resolution: {integrity: sha512-F4QLZWEdOJrUdvPMXsqo77vSS+VInnG4U+ToTyIzEFXx37OVJ4oufzCy2neUuVxFEaEoAYOUa8EohLkEsWPMNw==}
     engines: {node: '>=24.11.0'}
     hasBin: true
 
-  '@vitest-agent/engine@0.2.0':
-    resolution: {integrity: sha512-tkHw/hIGP69Tc2PtMA7hLdq+iY2uQj5jfSNEvWiwNwL6JATfSe8Mtgvh6SJfxTGUWG6xz8oaRaFm0W8Z8YC3/g==}
+  '@vitest-agent/engine@0.2.1':
+    resolution: {integrity: sha512-Hy0lGuam52DTypGaZCqHyBHeUj6+Drgn7sXHPSoGISeqp82MjOv9NkXyKy/y1WhFZlUAHkDbgtIzuoZWonIPpA==}
     engines: {node: '>=24.11.0'}
 
-  '@vitest-agent/mcp@4.1.0':
-    resolution: {integrity: sha512-10cDUeJ4aTYtIm7vRU1ZRH38Z+Zw5799TAxLJd5KkeDlRN+BeW1FmdUZwD4kIY7FdHL/HNqnUV8Ko1QLkaDeBA==}
+  '@vitest-agent/mcp@4.1.1':
+    resolution: {integrity: sha512-1ftiq0lk/xle3vkr2bKBezuS00M4JJPiAb9ebp42PokCzFbM5LqMCC64q9jisPPQbcr6uLMGNJDgF7WorVdwTA==}
     engines: {node: '>=24.11.0'}
     hasBin: true
     peerDependencies:
       vitest: ^5.0.0
 
-  '@vitest-agent/plugin@4.1.0':
-    resolution: {integrity: sha512-3T43gr+42vYucYVjOsh6C2C09VMKPX5e59hhkQ+4phgTFDDmA3/Mqft9i4T1MNO1bwZSonXCjnfy49HKnB64CA==}
+  '@vitest-agent/plugin@4.1.1':
+    resolution: {integrity: sha512-uMTBtGXgXXmSp7FZlIO5rl0Za6/S0jgg2SvLiSQZaTYfmCSE8fNLPmJPj3hPpmUHWon5aVlxrvO+ac7iWMpWgg==}
     engines: {node: '>=24.11.0'}
     hasBin: true
     peerDependencies:
@@ -4388,12 +4388,12 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@vitest-agent/cli@3.1.0(redis@6.2.1)':
+  '@vitest-agent/cli@3.1.1(redis@6.2.1)':
     dependencies:
       '@effect/platform-node': 4.0.0-rc.115(effect@4.0.0-rc.115)(redis@6.2.1)
       '@effect/sql-sqlite-node': 4.0.0-rc.115(effect@4.0.0-rc.115)
       '@effected/workspaces': 0.22.1(effect@4.0.0-rc.115)
-      '@vitest-agent/engine': 0.2.0(redis@6.2.1)
+      '@vitest-agent/engine': 0.2.1(redis@6.2.1)
       '@vitest-agent/sdk': 5.1.0
       '@vitest-agent/sidecar': 2.2.0
       effect: 4.0.0-rc.115
@@ -4402,7 +4402,7 @@ snapshots:
       - redis
       - utf-8-validate
 
-  '@vitest-agent/engine@0.2.0(redis@6.2.1)':
+  '@vitest-agent/engine@0.2.1(redis@6.2.1)':
     dependencies:
       '@effect/platform-node': 4.0.0-rc.115(effect@4.0.0-rc.115)(redis@6.2.1)
       '@effect/sql-sqlite-node': 4.0.0-rc.115(effect@4.0.0-rc.115)
@@ -4422,11 +4422,11 @@ snapshots:
       - redis
       - utf-8-validate
 
-  '@vitest-agent/mcp@4.1.0(redis@6.2.1)(vitest@5.0.1)':
+  '@vitest-agent/mcp@4.1.1(redis@6.2.1)(vitest@5.0.1)':
     dependencies:
       '@effect/platform-node': 4.0.0-rc.115(effect@4.0.0-rc.115)(redis@6.2.1)
       '@effect/sql-sqlite-node': 4.0.0-rc.115(effect@4.0.0-rc.115)
-      '@vitest-agent/engine': 0.2.0(redis@6.2.1)
+      '@vitest-agent/engine': 0.2.1(redis@6.2.1)
       '@vitest-agent/sdk': 5.1.0
       effect: 4.0.0-rc.115
       vitest: 5.0.1(@types/node@26.6.1)(@vitest/coverage-istanbul@5.0.1)(@vitest/coverage-v8@5.0.1)(vite@8.3.0(@types/node@26.6.1)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.1))
@@ -4435,14 +4435,14 @@ snapshots:
       - redis
       - utf-8-validate
 
-  '@vitest-agent/plugin@4.1.0(@vitest/coverage-istanbul@5.0.1)(@vitest/coverage-v8@5.0.1)(redis@6.2.1)(vitest@5.0.1)':
+  '@vitest-agent/plugin@4.1.1(@vitest/coverage-istanbul@5.0.1)(@vitest/coverage-v8@5.0.1)(redis@6.2.1)(vitest@5.0.1)':
     dependencies:
       '@effect/platform-node': 4.0.0-rc.115(effect@4.0.0-rc.115)(redis@6.2.1)
       '@effected/glob': 0.6.1(effect@4.0.0-rc.115)
       '@effected/workspaces': 0.22.1(effect@4.0.0-rc.115)
-      '@vitest-agent/cli': 3.1.0(redis@6.2.1)
-      '@vitest-agent/engine': 0.2.0(redis@6.2.1)
-      '@vitest-agent/mcp': 4.1.0(redis@6.2.1)(vitest@5.0.1)
+      '@vitest-agent/cli': 3.1.1(redis@6.2.1)
+      '@vitest-agent/engine': 0.2.1(redis@6.2.1)
+      '@vitest-agent/mcp': 4.1.1(redis@6.2.1)(vitest@5.0.1)
       '@vitest-agent/reporter': 3.1.0(@vitest/coverage-istanbul@5.0.1)(@vitest/coverage-v8@5.0.1)(redis@6.2.1)(vitest@5.0.1)
       '@vitest-agent/sdk': 5.1.0
       '@vitest/coverage-istanbul': 5.0.1(vitest@5.0.1)
