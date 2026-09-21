@@ -55,6 +55,7 @@ jobs:
           dependencies: |
             @effected/*
             @savvy-web/*
+            @okfit/*
             @vitest-agent/*
           run: |
             pnpm savvy init
