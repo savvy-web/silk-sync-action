@@ -22,7 +22,7 @@ The action previously ran on `@savvy-web/github-action-effects@3`, which is **de
 
 **For detailed architecture:** `@./.claude/design/silk-sync-action/architecture.md` — Load when modifying sync workflow logic, adding sync capabilities, debugging GitHub API interactions, or understanding the kit service layer.
 
-**Effect v4 API authority:** `.repos/effect` — vendored read-only Effect source pinned to `effect@4.0.0-rc.118` (matching `catalog:effect`) with v3→v4 migration notes. **Kit API authority:** `.repos/effected`, pinned to `@effected/github-actions@0.6.0`; each package's `CLAUDE.md` is the intended usage and `packages/<name>/src/index.ts` is the real export surface. Consult both rather than memory.
+**Effect v4 API authority:** `.repos/effect` — vendored read-only Effect source pinned to `effect@4.0.0-rc.118` (matching `catalog:effect`) with v3→v4 migration notes. **Kit API authority:** `.repos/effected`, pinned to `@effected/github-actions@0.18.1`; each package's `CLAUDE.md` is the intended usage and `packages/<name>/src/index.ts` is the real export surface. Consult both rather than memory.
 
 ## Commands
 

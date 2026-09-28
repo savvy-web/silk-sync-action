@@ -16,7 +16,6 @@
 				"layout": "Sparse checkout: packages/effect (core source + package.json exports map), packages/vitest (@effect/vitest reference implementation), migration/ (per-domain v3→v4 notes), ai-docs/, LLMS.md, MIGRATION.md.",
 				"keyPaths": {
 					"effect-source": "packages/effect/src",
-					"unstable-modules": "packages/effect/src/unstable",
 					"migration-notes": "migration",
 					"vitest-reference": "packages/vitest/src"
 				},
@@ -30,6 +29,21 @@
 					"note": "JSON Schema lowering changed at rc.118 (verified by probe). (1) Anonymous duplicate subschemas are no longer hoisted: beta.107 moved a structurally identical subschema occurring 3+ times into a generated `Union_` definition, but rc.118 inlines it; only an explicit `identifier` annotation produces a shared definition. (2) Schema.toJsonSchemaDocument's `onExcessProperty` option defaults to \"ignore\", which emits open objects (`additionalProperties: true`); pass `{ onExcessProperty: \"error\" }` to keep a published schema closed. (3) Schema.isPattern exports `pattern` only when the RegExp has the `u` flag. (4) Single-check `allOf` wrappers are flattened into the parent node."
 				}
 			]
+		},
+		"effected": {
+			"url": "https://github.com/spencerbeggs/effected.git",
+			"ref": "@effected/github-actions@0.18.1",
+			"purpose": "Read-only @effected kit source pinned to the installed @effected/github-actions release — the authority on the kit's real export surface (packages/<name>/src/index.ts) and intended usage (each package's CLAUDE.md) for the three packages this action is built on.",
+			"sparse": [
+				"packages/github-actions",
+				"packages/github",
+				"packages/config-file",
+				"CLAUDE.md"
+			],
+			"orientation": {
+				"layout": "Sparse checkout of the three kit packages this action uses: packages/github-actions (Action.run, ActionInput/Outputs/State/Logger, GitHubToken), packages/github (GitHubClient, GitHubApp, Repo, GitHubError), packages/config-file (ConfigFile.read + JsonCodec).",
+				"startHere": "packages/<name>/src/index.ts is the real export surface; packages/<name>/CLAUDE.md is the intended usage. Check the pin tag matches node_modules/@effected/github-actions/package.json — node_modules wins on disagreement. github and config-file are released from the same repo, so their source at this tag is what the catalog ships alongside github-actions."
+			}
 		}
 	}
 }
