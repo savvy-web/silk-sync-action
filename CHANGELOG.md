@@ -1,5 +1,40 @@
 # @savvy-web/pnpm-module-template
 
+## 1.4.24
+
+### Bug Fixes
+
+- Keeps the published `silk.config.schema.json` as strict as before the Effect `4.0.0-rc.118` upgrade, which would otherwise have loosened it.
+
+- Label `color` keeps its six-digit hex `pattern`, so editors still flag an invalid color
+
+- Config objects stay closed (`additionalProperties: false`), so editors still flag misspelled keys
+
+- Length and pattern constraints now sit directly on each property instead of inside single-entry `allOf` wrappers; what the schema accepts is unchanged [#355][#355]
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effect/platform-node | dependency | updated | 4.0.0-rc.117 | 4.0.0-rc.118 |
+| @effected/config-file | dependency | updated | ^0.12.0 | ^0.13.0 |
+| @effected/github | dependency | updated | ^0.13.0 | ^0.14.0 |
+| @effected/github-actions | dependency | updated | ^0.17.0 | ^0.18.1 |
+| @effected/glob | dependency | updated | ^0.8.0 | ^0.9.0 |
+| @effected/jsonc | dependency | updated | ^0.13.0 | ^0.14.0 |
+| @effected/toml | dependency | updated | ^0.9.0 | ^0.10.0 |
+| @effected/walker | dependency | updated | ^0.12.0 | ^0.13.0 |
+| @effected/yaml | dependency | updated | ^0.17.0 | ^0.18.0 |
+| effect | dependency | updated | 4.0.0-rc.117 | 4.0.0-rc.118 |
+
+[#355][#355]
+
+### Thanks
+
+Thanks to [@savvy-web-bot](https://github.com/apps/savvy-web-bot) for their contributions!
+
+[#355]: https://github.com/savvy-web/silk-sync-action/pull/355
+
 ## 1.4.23
 
 ### Dependencies
