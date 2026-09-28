@@ -2,7 +2,7 @@
 	"repos": {
 		"effect": {
 			"url": "https://github.com/Effect-TS/effect.git",
-			"ref": "effect@4.0.0-beta.107",
+			"ref": "effect@4.0.0-rc.118",
 			"purpose": "Read-only Effect v4 source pinned to the tag matching the effect catalog — the authority on what v4 actually exports, plus the v3→v4 migration notes and the @effect/vitest reference implementation. Tracks the main Effect-TS/effect monorepo (v4 development moved back there on 2026-07-19 when the effect-smol repo was archived); vendored at .repos/effect since the 2026-07-24 rename, matching the path a consuming repo would use.",
 			"sparse": [
 				"packages/effect",
@@ -24,10 +24,10 @@
 			},
 			"notes": [
 				{
-					"id": "n-7ac3",
-					"date": "2026-08-12",
-					"ref": "effect@4.0.0-beta.107",
-					"note": "JSON Schema lowering hoists duplicate anonymous subschemas. As of beta.107, Schema.toJsonSchemaDocument moves any structurally identical anonymous subschema occurring THREE OR MORE times into a shared definition keyed by a generated name (e.g. `Union_` for a `boolean | null`); at one or two occurrences it stays inline. Threshold verified by probe. This silently reshapes committed schema artifacts on a version bump — the body is byte-identical, only a $ref indirection plus a generated key appear. Fix is to annotate the shared node at its definition site: `Schema.optional(Schema.Boolean).annotate({ identifier: \"OptionalBoolean\" })` names the union itself. Annotating the INNER schema (Schema.Boolean.annotate(...)) names the boolean, not the union, and the union still hoists as `Union_`. There is no ToJsonSchemaOptions field controlling this (options are additionalProperties, generateDescriptions, includeAnnotationKey only)."
+					"id": "n-63f4",
+					"date": "2026-09-28",
+					"ref": "effect@4.0.0-rc.118",
+					"note": "JSON Schema lowering changed at rc.118 (verified by probe). (1) Anonymous duplicate subschemas are no longer hoisted: beta.107 moved a structurally identical subschema occurring 3+ times into a generated `Union_` definition, but rc.118 inlines it; only an explicit `identifier` annotation produces a shared definition. (2) Schema.toJsonSchemaDocument's `onExcessProperty` option defaults to \"ignore\", which emits open objects (`additionalProperties: true`); pass `{ onExcessProperty: \"error\" }` to keep a published schema closed. (3) Schema.isPattern exports `pattern` only when the RegExp has the `u` flag. (4) Single-check `allOf` wrappers are flattened into the parent node."
 				}
 			]
 		}

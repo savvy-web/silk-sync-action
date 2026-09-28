@@ -21,7 +21,12 @@ async function generate(): Promise<void> {
 	// v4 emits a `Document` ({ dialect, schema, definitions }) on the 2020-12
 	// dialect; `toDocumentDraft07` rewrites `#/$defs/...` refs to
 	// `#/definitions/...` for the draft-07 output this action publishes.
-	const { schema, definitions } = JsonSchema.toDocumentDraft07(Schema.toJsonSchemaDocument(SilkConfig));
+	const { schema, definitions } = JsonSchema.toDocumentDraft07(
+		// rc.118 defaults `onExcessProperty` to `"ignore"`, which emits open
+		// objects; `"error"` keeps the published schema closed so editors flag
+		// misspelled keys.
+		Schema.toJsonSchemaDocument(SilkConfig, { onExcessProperty: "error" }),
+	);
 
 	const schemaWithMeta = {
 		$schema: "http://json-schema.org/draft-07/schema#",
