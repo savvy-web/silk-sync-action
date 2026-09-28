@@ -9,33 +9,19 @@
 			"properties": {
 				"name": {
 					"type": "string",
-					"allOf": [
-						{
-							"minLength": 1
-						},
-						{
-							"maxLength": 50,
-							"description": "Label name (case-insensitive matching)"
-						}
-					]
+					"minLength": 1,
+					"maxLength": 50,
+					"description": "Label name (case-insensitive matching)"
 				},
 				"description": {
 					"type": "string",
-					"allOf": [
-						{
-							"maxLength": 100,
-							"description": "Short label description"
-						}
-					]
+					"maxLength": 100,
+					"description": "Short label description"
 				},
 				"color": {
 					"type": "string",
-					"allOf": [
-						{
-							"pattern": "^[0-9a-fA-F]{6}$",
-							"description": "Hex color without # prefix"
-						}
-					]
+					"pattern": "^[0-9a-fA-F]{6}$",
+					"description": "Hex color without # prefix"
 				}
 			},
 			"required": ["name", "description", "color"],

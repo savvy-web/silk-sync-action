@@ -3,7 +3,7 @@ import { Schema } from "effect";
 export const NonEmptyString = Schema.String.check(Schema.isMinLength(1, { message: "Value must not be empty" }));
 
 export const HexColor = Schema.String.check(
-	Schema.isPattern(/^[0-9a-fA-F]{6}$/, { message: "Must be a 6-digit hex color (e.g. 'd73a4a')" }),
+	Schema.isPattern(/^[0-9a-fA-F]{6}$/u, { message: "Must be a 6-digit hex color (e.g. 'd73a4a')" }),
 );
 
 export const LabelOperation = Schema.Literals(["created", "updated", "removed", "unchanged"]);
@@ -34,13 +34,12 @@ export type LabelDefinition = typeof LabelDefinition.Type;
  * The optional-boolean shape shared by most repository settings.
  *
  * @remarks
- * Carries an explicit `identifier` purely so the JSON Schema lowering names the
- * resulting `boolean | null` union. As of `effect@4.0.0-beta.107` the lowering
- * hoists any structurally identical anonymous subschema that occurs three or
- * more times into a shared definition; without an identifier it is emitted
- * under the generated key `Union_`, which is meaningless in editor tooltips and
- * not stable across betas. The annotation changes the definition key only — the
- * emitted body is byte-identical.
+ * Carries an explicit `identifier` so the JSON Schema lowering emits the
+ * `boolean | null` union once, as the shared `OptionalBoolean` definition,
+ * rather than inlining it at every setting. On `effect@4.0.0-beta.107` the
+ * lowering hoisted anonymous duplicates on its own under a generated `Union_`
+ * key; as of `4.0.0-rc.118` it no longer does, so the identifier is what keeps
+ * the published schema's shape stable.
  */
 const OptionalBoolean = Schema.optional(Schema.Boolean).annotate({ identifier: "OptionalBoolean" });
 

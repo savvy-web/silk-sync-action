@@ -13,7 +13,7 @@ implementation-plans: []
 
 # Silk Sync Action - Architecture
 
-GitHub Action that synchronizes repository settings, labels and GitHub Projects V2 linking across a GitHub organization (or personal account) using a centralized configuration file. Built on Effect **v4** (`effect@4.0.0-beta.107`, resolved via `catalog:effect`) and the `@effected/*` kit, which supplies the entire service layer (auth, typed REST/GraphQL client, state, outputs and reporting). This action contributes only the Silk-specific domain logic on top.
+GitHub Action that synchronizes repository settings, labels and GitHub Projects V2 linking across a GitHub organization (or personal account) using a centralized configuration file. Built on Effect **v4** (`effect@4.0.0-rc.118`, resolved via `catalog:effect`) and the `@effected/*` kit, which supplies the entire service layer (auth, typed REST/GraphQL client, state, outputs and reporting). This action contributes only the Silk-specific domain logic on top.
 
 ## Table of Contents
 
@@ -66,7 +66,7 @@ Both modes can be used simultaneously; results are merged and deduplicated by fu
 
 ## Current State
 
-The action is a compiled TypeScript action built on Effect **v4** (`effect@4.0.0-beta.107`), the `@effected/*` kit (`@effected/github-actions@0.6.0`, `@effected/github@0.3.0`, `@effected/config-file@0.3.0`) and `@savvy-web/github-action-builder`. It runs as a three-phase `node24` action (`pre` -> `main` -> `post`) whose lifecycle is driven by `Action.run` and the `GitHubToken` token lifecycle.
+The action is a compiled TypeScript action built on Effect **v4** (`effect@4.0.0-rc.118`), the `@effected/*` kit (`@effected/github-actions@0.18.1`, `@effected/github@0.14.0`, `@effected/config-file@0.13.0`) and `@savvy-web/github-action-builder`. It runs as a three-phase `node24` action (`pre` -> `main` -> `post`) whose lifecycle is driven by `Action.run` and the `GitHubToken` token lifecycle.
 
 The action previously ran on `@savvy-web/github-action-effects@3`, now deprecated and removed. `GitHubClientLive`, `GitHubGraphQL`, `ConfigLoader`, `ErrorAccumulator`, `Step.groupStep`, `GithubMarkdown` and the `/testing` subpath do not exist in the kit. The port froze the observable contract (inputs, outputs, `action.yml`, the three-phase token lifecycle, the step summary and the per-repo error semantics) — see [the parity contract](../../plans/2026-08-04-effected-port-parity-contract.md) for the frozen behavior plus its nine deliberate deviations, and [the API dossier](../../plans/2026-08-04-effected-port-api-dossier.md) for the signature-level legacy-to-kit symbol map.
 
@@ -116,7 +116,7 @@ Support both org discovery (via custom properties) and explicit repo lists. Org 
 
 ### Decision 3: User-provided config with a generated JSON schema
 
-Label definitions and repository settings come from a user-provided JSON config file. The published `silk.config.schema.json` is generated from the `SilkConfig` Effect Schema at build time (`lib/scripts/generate-schema.ts`), so IDE autocompletion and runtime validation share one source of truth. Under Effect v4 the generator is `JsonSchema.toDocumentDraft07(Schema.toJsonSchemaDocument(SilkConfig))`: `toJsonSchemaDocument` emits a 2020-12 `Document`, and `toDocumentDraft07` rewrites it into a draft-07 doc with a `definitions` map plus a root `$ref` (the script then splices in `$schema`/`title`/`description` metadata). Note the v4 emitter's shape: optional/nullable fields render as `anyOf: [T, null]` and Schema checks (min/max/pattern) render as `allOf` entries. `SilkConfig` carries an optional `$schema` field so users can reference the schema in their config without a validation error. The generated file was byte-frozen across the `@effected` port — `src/schemas.ts` uses core `effect` only and did not change.
+Label definitions and repository settings come from a user-provided JSON config file. The published `silk.config.schema.json` is generated from the `SilkConfig` Effect Schema at build time (`lib/scripts/generate-schema.ts`), so IDE autocompletion and runtime validation share one source of truth. Under Effect v4 the generator is `JsonSchema.toDocumentDraft07(Schema.toJsonSchemaDocument(SilkConfig, { onExcessProperty: "error" }))`. The option keeps objects closed (`additionalProperties: false`), because since `4.0.0-rc.118` the default `"ignore"` emits open objects. `toJsonSchemaDocument` emits a 2020-12 `Document`, and `toDocumentDraft07` rewrites it into a draft-07 doc with a `definitions` map plus a root `$ref` (the script then splices in `$schema`/`title`/`description` metadata). Note the v4 emitter's shape: optional/nullable fields render as `anyOf: [T, null]`, and Schema checks (min/max/pattern) render inline on the node (as of rc.118; earlier betas wrapped them in `allOf`). `Schema.isPattern` exports `pattern` only when its RegExp carries the `u` flag, so `HexColor` uses `/.../u`. `SilkConfig` carries an optional `$schema` field so users can reference the schema in their config without a validation error. The generated file was byte-frozen across the `@effected` port (it was reshaped, though not changed in meaning, by the rc.118 upgrade) — `src/schemas.ts` uses core `effect` only and did not change.
 
 ### Decision 4: Three-phase execution via the `GitHubToken` lifecycle
 
@@ -251,7 +251,7 @@ Each source file has a matching suite under `__test__/`, mirroring the `src/` tr
 
 Domain schemas live in `src/schemas.ts`; domain errors in `src/errors.ts`. Types use `Schema.Struct` with `typeof X.Type` inference; errors use `Schema.TaggedError` with a custom `get message()`. The schemas follow Effect v4 idioms: refinements are attached via `.check(...)` with predicate combinators (`Schema.isMinLength`, `Schema.isMaxLength`, `Schema.isPattern`) rather than the v3 `.pipe(Schema.minLength/...)` filters, and closed enums use `Schema.Literals([...])` (array form) instead of the variadic `Schema.Literal(a, b, c)`. This file depends on core `effect` only and was untouched by the `@effected` port.
 
-`RepositorySettings`'s optional booleans share one annotated `OptionalBoolean` schema rather than repeating `Schema.optional(Schema.Boolean)` inline. The annotation is not decorative: since `effect@4.0.0-beta.107` the JSON Schema lowering hoists any structurally identical anonymous subschema occurring three or more times into a shared definition, and without an explicit `identifier` it emits the generated key `Union_` into the published `silk.config.schema.json` — meaningless in editor tooltips and not stable across betas. Annotating the `Schema.optional(...)` wrapper names the union itself; annotating the inner `Schema.Boolean` names the boolean and leaves the union to hoist as `Union_` anyway. The emitted body is identical either way, so this is a naming decision only.
+`RepositorySettings`'s optional booleans share one annotated `OptionalBoolean` schema rather than repeating `Schema.optional(Schema.Boolean)` inline. The annotation is not decorative: its explicit `identifier` is what makes the JSON Schema lowering emit the `boolean | null` union once, as a shared `OptionalBoolean` definition in `silk.config.schema.json`. On `effect@4.0.0-beta.107` the lowering hoisted structurally identical anonymous subschemas (three or more occurrences) on its own under a generated `Union_` key; as of `4.0.0-rc.118` it no longer hoists them at all, so without the identifier every setting would inline the union. Annotate the `Schema.optional(...)` wrapper, not the inner `Schema.Boolean`, so the union itself carries the name.
 
 The cardinal config type is `SilkConfig` (`{ $schema?, labels: LabelDefinition[], settings: RepositorySettings }`). It is the contract for both the user config file and the generated JSON schema, so its shape must stay stable. `RepositorySettings` enumerates the syncable keys (mirrored by `SYNCABLE_KEYS` in `src/sync/settings.ts`). Note that `@effected/github` also exports a type named `RepositorySettings` (the whole `GET /repos/{owner}/{repo}` payload); the local one is the config vocabulary and the kit's is deliberately not imported.
 
@@ -371,11 +371,11 @@ Declared in `REQUIRED_PERMISSIONS` (`src/pre.ts`) and enforced at provision time
 
 | Package | Purpose |
 | :------ | :------ |
-| `effect` (v4, `4.0.0-beta.107` via `catalog:effect`) | Schema, Layer, Effect (core Effect-TS); also `JsonSchema` and the HTTP client, all folded into core in v4 |
+| `effect` (v4, `4.0.0-rc.118` via `catalog:effect`) | Schema, Layer, Effect (core Effect-TS); also `JsonSchema` and the HTTP client, all folded into core in v4 |
 | `@effect/platform-node` | Node platform services; a required peer of `@effected/github-actions` kept as a direct dependency |
-| `@effected/github-actions` (0.6.0) | `Action.run` / `ActionRuntime`, inputs, outputs, state, environment, logger, `GitHubToken`, `GitHubMarkdown` |
-| `@effected/github` (0.3.0) | Typed REST + GraphQL `GitHubClient`, `GitHubApp`, `GitHubRepository`, `GitHubIssue`, `Repo`/`RepoRef`, `GitHubError` |
-| `@effected/config-file` (0.3.0) | `ConfigFile.read` + `JsonCodec` for the user config |
+| `@effected/github-actions` (0.18.1) | `Action.run` / `ActionRuntime`, inputs, outputs, state, environment, logger, `GitHubToken`, `GitHubMarkdown` |
+| `@effected/github` (0.14.0) | Typed REST + GraphQL `GitHubClient`, `GitHubApp`, `GitHubRepository`, `GitHubIssue`, `Repo`/`RepoRef`, `GitHubError` |
+| `@effected/config-file` (0.13.0) | `ConfigFile.read` + `JsonCodec` for the user config |
 | `@savvy-web/github-action-builder` (dev) | rsbuild/rspack bundling + `action.yml` validation |
 
 There are no direct `@actions/*` or `@octokit/*` dependencies; octokit is owned by `@effected/github`.
@@ -475,8 +475,8 @@ Carried forward from the `@effected` port, recorded rather than papered over:
 
 **API authority:**
 
-- `.repos/effect` — vendored read-only Effect source pinned to `effect@4.0.0-beta.107`
-- `.repos/effected` — vendored kit source pinned to `@effected/github-actions@0.6.0`; each package's `CLAUDE.md` is the intended usage, `packages/<name>/src/index.ts` the real export surface
+- `.repos/effect` — vendored read-only Effect source pinned to `effect@4.0.0-rc.118`
+- `.repos/effected` — vendored kit source pinned to `@effected/github-actions@0.18.1`; each package's `CLAUDE.md` is the intended usage, `packages/<name>/src/index.ts` the real export surface
 
 **Project files:**
 
@@ -496,4 +496,4 @@ Carried forward from the `@effected` port, recorded rather than papered over:
 
 ---
 
-**Document Status:** Current — resynced 2026-08-11 against the `effect@4.0.0-beta.107` wave. Service layer is `@effected/github-actions@0.6.0` + `@effected/github@0.3.0` + `@effected/config-file@0.3.0` on `effect@4.0.0-beta.107`; `@savvy-web/github-action-effects` is gone along with `GitHubClientLive`, `GitHubGraphQL`, `ConfigLoader`, `ErrorAccumulator`, `Step.groupStep` and the `/testing` subpath. Route-literal REST, ambient `Repo`, `GitHubError.kind` branching and `Effect.partition` are the new load-bearing patterns; the observable contract (inputs, outputs, `action.yml`, token lifecycle, step summary, per-repo error semantics) is unchanged.
+**Document Status:** Current — resynced 2026-08-11 against the `effect@4.0.0-beta.107` wave (Effect pin since moved to `4.0.0-rc.118`). Service layer (updated with the rc.118 kit) is `@effected/github-actions@0.18.1` + `@effected/github@0.14.0` + `@effected/config-file@0.13.0` on `effect@4.0.0-rc.118`; `@savvy-web/github-action-effects` is gone along with `GitHubClientLive`, `GitHubGraphQL`, `ConfigLoader`, `ErrorAccumulator`, `Step.groupStep` and the `/testing` subpath. Route-literal REST, ambient `Repo`, `GitHubError.kind` branching and `Effect.partition` are the new load-bearing patterns; the observable contract (inputs, outputs, `action.yml`, token lifecycle, step summary, per-repo error semantics) is unchanged.
