@@ -59,8 +59,8 @@
 	},
 	"devDependencies": {
 		"@okfit/plugin": "^0.5.5",
-		"@savvy-web/github-action-builder": "^2.4.8",
-		"@savvy-web/silk": "^4.2.13",
+		"@savvy-web/github-action-builder": "^2.4.9",
+		"@savvy-web/silk": "^4.2.14",
 		"@vitest-agent/plugin": "^5.0.3"
 	},
 	"engines": {
