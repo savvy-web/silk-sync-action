@@ -58,9 +58,9 @@
 		"effect": "catalog:effect"
 	},
 	"devDependencies": {
-		"@okfit/plugin": "^0.5.6",
+		"@okfit/plugin": "^0.5.7",
 		"@savvy-web/github-action-builder": "^2.4.9",
-		"@savvy-web/silk": "^4.3.0",
+		"@savvy-web/silk": "^4.3.1",
 		"@vitest-agent/plugin": "^5.1.1"
 	},
 	"engines": {
