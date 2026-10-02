@@ -6,8 +6,8 @@ importers:
   .:
     configDependencies:
       '@effected/pnpm-plugin-effect':
-        specifier: 0.13.0
-        version: 0.13.0
+        specifier: 0.13.2
+        version: 0.13.2
       '@savvy-web/pnpm-plugin-silk':
         specifier: 0.46.0
         version: 0.46.0
@@ -18,8 +18,8 @@ importers:
 
 packages:
 
-  '@effected/pnpm-plugin-effect@0.13.0':
-    resolution: {integrity: sha512-NuOa9Z1D7ULUDizTnCWvgoK+rEFIgP87lCWNLDLc99hZpSX+Z7MyhNn4N0zYVfOyoN0Qg5rc6ZG+Z0PGDoAaMA==}
+  '@effected/pnpm-plugin-effect@0.13.2':
+    resolution: {integrity: sha512-iX2ASd0Hw9lwT2Pn2f1k0Y3McXn9jCPoo7+OoEmj1C4IWvAVUNH7zTBhS1HiUgSXi9Axof6+HhijsXeAU9VdpA==}
 
   '@pnpm/exe.android-arm64@12.8.2':
     resolution: {integrity: sha512-b0gzsJQuxYCX1Pokkf9z+lvajgb5bqBExjmw4kj8H4Bwd2AfH8TkQVxDtrHGptEdkuwokEUSERdpNbRok2cc6Q==}
@@ -108,7 +108,7 @@ packages:
 
 snapshots:
 
-  '@effected/pnpm-plugin-effect@0.13.0': {}
+  '@effected/pnpm-plugin-effect@0.13.2': {}
 
   '@pnpm/exe.android-arm64@12.8.2':
     optional: true
@@ -218,7 +218,7 @@ overrides:
   '@effect/platform-node@4.0.0-rc.117>@effect/platform-node-shared': 4.0.0-rc.117
   '@effect/platform-node@4.0.0-rc.118>@effect/platform-node-shared': 4.0.0-rc.118
 
-pnpmfileChecksum: sha256-jN0t+yKJ0BkrmCnMPt8mEVPcUKCdiBLHaUN1oNmmMkk=
+pnpmfileChecksum: sha256-1/JtRDMjSybI40FNMp1oZdEUImegS0Ex7CuBA4AMOOQ=
 
 importers:
 
@@ -1909,8 +1909,8 @@ packages:
     resolution: {integrity: sha512-BLrgEcRTwX2o6gGxGOCNyMvGSp35YofuYzw9h1IMTRmKqttAZZVU67bdb9Pr2vUHA8+j3i2tJfjO6C6+4myGTA==}
     engines: {node: 18 || 20 || >=22}
 
-  baseline-browser-mapping@2.11.26:
-    resolution: {integrity: sha512-GLQdD3y6UF8iVuMJl5fHgE4jdn/ua7n+toKfLgNlg3BqQtOZjpy68T8Tup8/wGWZCDlm7KMg7tPb4MPn7oN0TQ==}
+  baseline-browser-mapping@2.11.27:
+    resolution: {integrity: sha512-ElY12DaROGuan+lMmZ8Cvo/ZUbXPe7Enc/9VU/b1T3Kp4dwytRcNdR8DoSJN5SNJT/CuvcCA0DHDVmMOCePdRQ==}
     engines: {node: '>=6.0.0'}
     hasBin: true
 
@@ -5033,7 +5033,7 @@ snapshots:
 
   balanced-match@4.0.4: {}
 
-  baseline-browser-mapping@2.11.26: {}
+  baseline-browser-mapping@2.11.27: {}
 
   before-after-hook@4.0.0: {}
 
@@ -5049,7 +5049,7 @@ snapshots:
 
   browserslist@4.29.3:
     dependencies:
-      baseline-browser-mapping: 2.11.26
+      baseline-browser-mapping: 2.11.27
       caniuse-lite: 1.0.30001814
       electron-to-chromium: 1.5.443
       node-releases: 2.0.57
