@@ -12,7 +12,10 @@ import { syncRepo } from "./syncRepo.js";
  * `Effect.partition` is the kit's answer to the legacy `ErrorAccumulator`,
  * which has no successor by design: it runs every effect and never fails.
  * `syncRepo`'s error channel is `never`, so the failure half is statically
- * empty — the destructure documents that rather than hiding it.
+ * empty — the destructure documents that rather than hiding it. Since Effect
+ * `4.0.0` the tuple is `[passes, fails]`; destructuring the wrong slot still
+ * compiles (`never[]` is assignable to the result type) and silently returns
+ * nothing, so keep `results` first.
  */
 export const processRepos = (
 	repos: ReadonlyArray<DiscoveredRepo>,
@@ -21,7 +24,7 @@ export const processRepos = (
 	inputs: SyncInputs,
 ): Effect.Effect<ReadonlyArray<RepoSyncResult>, never, GitHubClient | GitHubIssue | GitHubRepository> =>
 	Effect.gen(function* () {
-		const [, results] = yield* Effect.partition(repos, (repo) =>
+		const [results] = yield* Effect.partition(repos, (repo) =>
 			Effect.gen(function* () {
 				yield* Effect.logInfo(`Processing ${repo.fullName}`);
 				return yield* syncRepo(repo, config, projectCache, inputs);
