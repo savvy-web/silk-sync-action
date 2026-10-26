@@ -1,5 +1,21 @@
 # @savvy-web/pnpm-module-template
 
+## 1.4.38
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effected/github | dependency | updated | ^0.25.0 | ^0.25.1 |
+
+[#442][#442]
+
+### Thanks
+
+Thanks to [@savvy-web-bot](https://github.com/apps/savvy-web-bot) for their contributions!
+
+[#442]: https://github.com/savvy-web/silk-sync-action/pull/442
+
 ## 1.4.37
 
 ### Dependencies
@@ -576,8 +592,6 @@ Thanks to [@savvy-web-bot](https://github.com/apps/savvy-web-bot) for their cont
   | --- | --- | --- | --- | --- | --- |
   | @effected/config-file | dependency | updated | ^0.5.0 | ^0.5.1 | [#223][#223] Thanks [@savvy-web-bot](https://github.com/apps/savvy-web-bot)! |
 
-### Patch Changes
-
 [#223]: https://github.com/savvy-web/silk-sync-action/pull/223
 
 ## 1.4.6
@@ -587,8 +601,6 @@ Thanks to [@savvy-web-bot](https://github.com/apps/savvy-web-bot) for their cont
 - | Dependency | Type | Action | From | To |  |
   | --- | --- | --- | --- | --- | --- |
   | @effected/github-actions | dependency | updated | ^0.9.1 | ^0.9.2 | [#206][#206] Thanks [@savvy-web-bot](https://github.com/apps/savvy-web-bot)! |
-
-### Patch Changes
 
 [#206]: https://github.com/savvy-web/silk-sync-action/pull/206
 
@@ -601,8 +613,6 @@ Thanks to [@savvy-web-bot](https://github.com/apps/savvy-web-bot) for their cont
   | @effected/github | dependency | updated | ^0.6.0 | ^0.7.0 |  |
   | @effected/github-actions | dependency | updated | ^0.9.0 | ^0.9.1 | [#203][#203] Thanks [@savvy-web-bot](https://github.com/apps/savvy-web-bot)! |
 
-### Patch Changes
-
 [#203]: https://github.com/savvy-web/silk-sync-action/pull/203
 
 ## 1.4.4
@@ -613,8 +623,6 @@ Thanks to [@savvy-web-bot](https://github.com/apps/savvy-web-bot) for their cont
   | --- | --- | --- | --- | --- | --- |
   | @effected/github | dependency | updated | ^0.5.0 | ^0.6.0 |  |
   | @effected/github-actions | dependency | updated | ^0.8.0 | ^0.9.0 | [#200][#200] Thanks [@savvy-web-bot](https://github.com/apps/savvy-web-bot)! |
-
-### Patch Changes
 
 [#200]: https://github.com/savvy-web/silk-sync-action/pull/200
 
@@ -630,8 +638,6 @@ Thanks to [@savvy-web-bot](https://github.com/apps/savvy-web-bot) for their cont
   | @effected/github-actions | dependency | updated | ^0.7.0 | ^0.8.0 |  |
   | effect | dependency | updated | 4.0.0-beta.107 | 4.0.0-rc.109 | [#197][#197] Thanks [@savvy-web-bot](https://github.com/apps/savvy-web-bot)! |
 
-### Patch Changes
-
 [#197]: https://github.com/savvy-web/silk-sync-action/pull/197
 
 ## 1.4.2
@@ -642,8 +648,6 @@ Thanks to [@savvy-web-bot](https://github.com/apps/savvy-web-bot) for their cont
   | --- | --- | --- | --- | --- | --- |
   | @effected/config-file | dependency | updated | ^0.4.1 | ^0.4.2 | [#194][#194] Thanks [@savvy-web-bot](https://github.com/apps/savvy-web-bot)! |
 
-### Patch Changes
-
 [#194]: https://github.com/savvy-web/silk-sync-action/pull/194
 
 ## 1.4.1
@@ -653,8 +657,6 @@ Thanks to [@savvy-web-bot](https://github.com/apps/savvy-web-bot) for their cont
 - | Dependency | Type | Action | From | To |  |
   | --- | --- | --- | --- | --- | --- |
   | @effected/github | dependency | updated | ^0.4.2 | ^0.4.3 | [#189][#189] Thanks [@savvy-web-bot](https://github.com/apps/savvy-web-bot)! |
-
-### Patch Changes
 
 [#189]: https://github.com/savvy-web/silk-sync-action/pull/189
 
@@ -691,8 +693,6 @@ Thanks to [@savvy-web-bot](https://github.com/apps/savvy-web-bot) for their cont
   | @effected/github | dependency | updated | ^0.3.0 | ^0.4.1 |  |
   | @effected/github-actions | dependency | updated | ^0.6.0 | ^0.6.1 | [#179][#179] Thanks [@savvy-web-bot](https://github.com/apps/savvy-web-bot)! |
 
-### Patch Changes
-
 [#179]: https://github.com/savvy-web/silk-sync-action/pull/179
 
 ## 1.3.1
@@ -702,8 +702,6 @@ Thanks to [@savvy-web-bot](https://github.com/apps/savvy-web-bot) for their cont
 - | Dependency | Type | Action | From | To |  |
   | --- | --- | --- | --- | --- | --- |
   | @effected/config-file | dependency | updated | ^0.3.0 | ^0.3.1 | [#176][#176] Thanks [@savvy-web-bot](https://github.com/apps/savvy-web-bot)! |
-
-### Patch Changes
 
 [#176]: https://github.com/savvy-web/silk-sync-action/pull/176
 
@@ -776,8 +774,6 @@ Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributio
   | --- | --- | --- | --- | --- | --- |
   | @savvy-web/github-action-effects | dependency | updated | ^3.0.5 | ^3.1.0 | [#150][#150] Thanks [@savvy-web-bot](https://github.com/apps/savvy-web-bot)! |
 
-### Patch Changes
-
 [#150]: https://github.com/savvy-web/silk-sync-action/pull/150
 
 ## 1.1.2
@@ -790,8 +786,6 @@ Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributio
   | @savvy-web/github-action-effects | dependency | updated | ^3.0.4 | ^3.0.5 |  |
   | effect | dependency | updated | 4.0.0-beta.99 | 4.0.0-beta.101 | [#147][#147] Thanks [@savvy-web-bot](https://github.com/apps/savvy-web-bot)! |
 
-### Patch Changes
-
 [#147]: https://github.com/savvy-web/silk-sync-action/pull/147
 
 ## 1.1.1
@@ -803,8 +797,6 @@ Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributio
   | @effect/platform-node | dependency | updated | 4.0.0-beta.98 | 4.0.0-beta.99 |  |
   | @savvy-web/github-action-effects | dependency | updated | ^3.0.1 | ^3.0.4 |  |
   | effect | dependency | updated | 4.0.0-beta.98 | 4.0.0-beta.99 | [#140][#140] Thanks [@savvy-web-bot](https://github.com/apps/savvy-web-bot)! |
-
-### Patch Changes
 
 [#140]: https://github.com/savvy-web/silk-sync-action/pull/140
 
@@ -845,8 +837,6 @@ Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributio
 - | Dependency | Type | Action | From | To |  |
   | --- | --- | --- | --- | --- | --- |
   | @savvy-web/github-action-effects | dependency | updated | ^2.3.7 | ^2.4.0 | [#114][#114] Thanks [@savvy-web-bot](https://github.com/apps/savvy-web-bot)! |
-
-### Patch Changes
 
 [#114]: https://github.com/savvy-web/silk-sync-action/pull/114
 
