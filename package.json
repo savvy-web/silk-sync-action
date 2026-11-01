@@ -46,7 +46,7 @@
 		"validate": "github-action-builder validate"
 	},
 	"dependencies": {
-		"@effect/platform-node": "catalog:effect",
+		"@effect/platform-node": "catalog:effected",
 		"@effected/config-file": "catalog:effected",
 		"@effected/github": "catalog:effected",
 		"@effected/github-actions": "catalog:effected",
@@ -55,13 +55,13 @@
 		"@effected/toml": "catalog:effected",
 		"@effected/walker": "catalog:effected",
 		"@effected/yaml": "catalog:effected",
-		"effect": "catalog:effect"
+		"effect": "catalog:effected"
 	},
 	"devDependencies": {
-		"@okfit/plugin": "^0.5.27",
-		"@savvy-web/github-action-builder": "^2.4.23",
-		"@savvy-web/silk": "^4.5.4",
-		"@vitest-agent/plugin": "^5.6.2"
+		"@okfit/plugin": "^0.5.28",
+		"@savvy-web/github-action-builder": "^2.4.24",
+		"@savvy-web/silk": "^4.5.5",
+		"@vitest-agent/plugin": "^6.0.4"
 	},
 	"engines": {
 		"node": ">=24.11.0"

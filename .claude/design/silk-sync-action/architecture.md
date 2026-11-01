@@ -13,7 +13,7 @@ implementation-plans: []
 
 # Silk Sync Action - Architecture
 
-GitHub Action that synchronizes repository settings, labels and GitHub Projects V2 linking across a GitHub organization (or personal account) using a centralized configuration file. Built on Effect **v4** (`effect@4.0.0`, resolved via `catalog:effect`) and the `@effected/*` kit, which supplies the entire service layer (auth, typed REST/GraphQL client, state, outputs and reporting). This action contributes only the Silk-specific domain logic on top.
+GitHub Action that synchronizes repository settings, labels and GitHub Projects V2 linking across a GitHub organization (or personal account) using a centralized configuration file. Built on Effect **v4** (`effect@4.1.1`, resolved via `catalog:effected` from the `@effected/pnpm-plugin-effected` config dependency) and the `@effected/*` kit, which supplies the entire service layer (auth, typed REST/GraphQL client, state, outputs and reporting). This action contributes only the Silk-specific domain logic on top.
 
 ## Table of Contents
 
@@ -66,7 +66,7 @@ Both modes can be used simultaneously; results are merged and deduplicated by fu
 
 ## Current State
 
-The action is a compiled TypeScript action built on Effect **v4** (`effect@4.0.0`), the `@effected/*` kit (`@effected/github-actions@0.20.0`, `@effected/github@0.15.0`, `@effected/config-file@0.14.0`) and `@savvy-web/github-action-builder`. It runs as a three-phase `node24` action (`pre` -> `main` -> `post`) whose lifecycle is driven by `Action.run` and the `GitHubToken` token lifecycle.
+The action is a compiled TypeScript action built on Effect **v4** (`effect@4.1.1`), the `@effected/*` kit (`@effected/github-actions@0.30.0`, `@effected/github@0.27.0`, `@effected/config-file@0.23.0`) and `@savvy-web/github-action-builder`. It runs as a three-phase `node24` action (`pre` -> `main` -> `post`) whose lifecycle is driven by `Action.run` and the `GitHubToken` token lifecycle.
 
 The action previously ran on `@savvy-web/github-action-effects@3`, now deprecated and removed. `GitHubClientLive`, `GitHubGraphQL`, `ConfigLoader`, `ErrorAccumulator`, `Step.groupStep`, `GithubMarkdown` and the `/testing` subpath do not exist in the kit. The port froze the observable contract (inputs, outputs, `action.yml`, the three-phase token lifecycle, the step summary and the per-repo error semantics) — see [the parity contract](../../plans/2026-08-04-effected-port-parity-contract.md) for the frozen behavior plus its nine deliberate deviations, and [the API dossier](../../plans/2026-08-04-effected-port-api-dossier.md) for the signature-level legacy-to-kit symbol map.
 
@@ -169,7 +169,7 @@ Each entrypoint is a thin shell guarded on `process.env.GITHUB_ACTIONS` that cal
 
 This is the load-bearing wiring between the action and the kit, and it is now small:
 
-- **`PreLive` / `PostLive`:** `GitHubApp.layer` — nothing else. The layer has no requirements; it owns its own octokit and JWT signing. Everything else `pre`/`post` touch comes from `ActionRuntime.layer`.
+- **`PreLive` / `PostLive`:** `GitHubApp.layer` provided with `NodeCrypto.layerSignature`. The layer owns its own octokit, but since Effect 4.1 it signs the App JWT through core's `Signature` service, which `ActionRuntime.layer` does not carry (it provides `Digest`, `Mac` and `SecureRandom` only). `NodeCrypto.layerSignature` supplies its own `SecureRandom`. Everything else `pre`/`post` touch comes from `ActionRuntime.layer`.
 - **`MainLive`:** `GitHubToken.clientLayer().pipe(Layer.orDie)` for the `GitHubClient` built from the token `pre` persisted, plus `GitHubRepository.layer` and `GitHubIssue.layer` provided over that client. This is the only place the persisted token is turned back into an authenticated client.
 
 ### Action contract (`action.yml`)
@@ -280,7 +280,7 @@ From `@effected/github-actions`:
 
 From `@effected/github`:
 
-- **`GitHubApp`** — `GitHubApp.layer` for `pre`/`post`; owns its octokit and JWT signing.
+- **`GitHubApp`** — `GitHubApp.layer` for `pre`/`post`; owns its octokit, signs the App JWT through core `Signature` (provided by `NodeCrypto.layerSignature`).
 - **`GitHubClient`** — `request(route, params)` and `paginate(route, params)` for REST, `graphql(document, vars)` for GraphQL, with automatic 429/5xx retry and backoff. Wrapped into typed helpers in `src/github/reads.ts`.
 - **`GitHubRepository` / `GitHubIssue`** — resource services over the client (`updateSettings`, `list({ state })`), both `Repo`-scoped.
 - **`Repo` / `RepoRef`** — the ambient repository, provided with `Repo.provide(ref)` rather than as a layer.
@@ -371,11 +371,11 @@ Declared in `REQUIRED_PERMISSIONS` (`src/pre.ts`) and enforced at provision time
 
 | Package | Purpose |
 | :------ | :------ |
-| `effect` (v4, `^4.0.0` via `catalog:effect`, resolved `4.0.0`) | Schema, Layer, Effect (core Effect-TS); also `JsonSchema` and the HTTP client, all folded into core in v4 |
+| `effect` (v4, `~4.1.1` via `catalog:effected`, resolved `4.1.1`) | Schema, Layer, Effect (core Effect-TS); also `JsonSchema` and the HTTP client, all folded into core in v4 |
 | `@effect/platform-node` | Node platform services; a required peer of `@effected/github-actions` kept as a direct dependency |
-| `@effected/github-actions` (0.20.0) | `Action.run` / `ActionRuntime`, inputs, outputs, state, environment, logger, `GitHubToken`, `GitHubMarkdown` |
-| `@effected/github` (0.15.0) | Typed REST + GraphQL `GitHubClient`, `GitHubApp`, `GitHubRepository`, `GitHubIssue`, `Repo`/`RepoRef`, `GitHubError` |
-| `@effected/config-file` (0.14.0) | `ConfigFile.read` + `JsonCodec` for the user config |
+| `@effected/github-actions` (0.30.0) | `Action.run` / `ActionRuntime`, inputs, outputs, state, environment, logger, `GitHubToken`, `GitHubMarkdown` |
+| `@effected/github` (0.27.0) | Typed REST + GraphQL `GitHubClient`, `GitHubApp`, `GitHubRepository`, `GitHubIssue`, `Repo`/`RepoRef`, `GitHubError` |
+| `@effected/config-file` (0.23.0) | `ConfigFile.read` + `JsonCodec` for the user config |
 | `@savvy-web/github-action-builder` (dev) | rsbuild/rspack bundling + `action.yml` validation |
 
 There are no direct `@actions/*` or `@octokit/*` dependencies; octokit is owned by `@effected/github`.
@@ -440,7 +440,7 @@ Defines the three build entries (`pre`/`main`/`post`), `minify: true`, an `ignor
 
 The `ignore` list is a **safety net whose necessity is unverified**. `@cyclonedx/cyclonedx-library` is still installed transitively (through `@effected/github-actions` -> `@effected/sbom`), but the kit keeps its modules off the default runtime's import graph and the built bundles contain zero bytes of it. The entry may now be dead config; it was kept because removing it was not part of the port's verification budget. See [known follow-ups](#known-follow-ups).
 
-Output: `dist/pre.js` (285 kB), `dist/main.js` (414 kB), `dist/post.js` (285 kB) — down from 468 kB / 487 kB / 468 kB before the `@effected` port. The kit's confinement invariants hold in the bundle: zero occurrences of `azure`, `cyclonedx`, `sigstore` or `xmlbuilder` in any entry.
+Output: `dist/pre.js` (~410 kB), `dist/main.js` (~555 kB), `dist/post.js` (~410 kB) on Effect 4.1.1 — each entry grew ~57 kB in the 4.1 round, when JWT signing moved onto core `Signature`. The kit's confinement invariants hold in the bundle: zero occurrences of `azure`, `cyclonedx`, `sigstore` or `xmlbuilder` in any entry.
 
 ---
 
@@ -475,8 +475,8 @@ Carried forward from the `@effected` port, recorded rather than papered over:
 
 **API authority:**
 
-- `.repos/effect` — vendored read-only Effect source pinned to `effect@4.0.0`
-- `.repos/effected` — vendored kit source pinned to `@effected/github-actions@0.20.0`; each package's `CLAUDE.md` is the intended usage, `packages/<name>/src/index.ts` the real export surface
+- `.repos/effect` — vendored read-only Effect source pinned to `effect@4.1.1`
+- `.repos/effected` — vendored kit source pinned to `@effected/github-actions@0.30.0`; each package's `CLAUDE.md` is the intended usage, `packages/<name>/src/index.ts` the real export surface
 
 **Project files:**
 
@@ -496,4 +496,4 @@ Carried forward from the `@effected` port, recorded rather than papered over:
 
 ---
 
-**Document Status:** Current — resynced 2026-08-11 against the `effect@4.0.0-beta.107` wave (Effect pin since moved to `4.0.0-rc.118`, then to stable `4.0.0` on 2026-10-02). Service layer (updated with the 4.0.0 kit) is `@effected/github-actions@0.20.0` + `@effected/github@0.15.0` + `@effected/config-file@0.14.0` on `effect@4.0.0`; `@savvy-web/github-action-effects` is gone along with `GitHubClientLive`, `GitHubGraphQL`, `ConfigLoader`, `ErrorAccumulator`, `Step.groupStep` and the `/testing` subpath. Route-literal REST, ambient `Repo`, `GitHubError.kind` branching and `Effect.partition` are the new load-bearing patterns; the observable contract (inputs, outputs, `action.yml`, token lifecycle, step summary, per-repo error semantics) is unchanged.
+**Document Status:** Current — resynced 2026-11-01 against `effect@4.1.1` and the `@effected` 4.1 release (`@effected/github-actions@0.30.0` + `@effected/github@0.27.0` + `@effected/config-file@0.23.0`); the only code change that round was providing `Signature` to `GitHubApp.layer`. `@savvy-web/github-action-effects` is gone along with `GitHubClientLive`, `GitHubGraphQL`, `ConfigLoader`, `ErrorAccumulator`, `Step.groupStep` and the `/testing` subpath. Route-literal REST, ambient `Repo`, `GitHubError.kind` branching and `Effect.partition` are the new load-bearing patterns; the observable contract (inputs, outputs, `action.yml`, token lifecycle, step summary, per-repo error semantics) is unchanged.
