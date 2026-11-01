@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Silk Sync Action** is a GitHub Action that synchronizes repository settings, labels, and GitHub Projects V2 linking across a GitHub organization. It reads a centralized JSON config file (`silk.config.json`) and applies it to discovered repositories.
 
-Built with **Effect v4** (`effect@4.0.0` via `catalog:effect`) on top of the **`@effected/*`** kit and bundled with **`@savvy-web/github-action-builder`**. Runs as a three-phase `node24` action: `pre` (App token provisioning) -> `main` (sync) -> `post` (token revocation).
+Built with **Effect v4** (`effect@4.1.1` via `catalog:effected`, served by the `@effected/pnpm-plugin-effected` config dependency, which holds the Effect family to one minor, `~4.1.1`) on top of the **`@effected/*`** kit and bundled with **`@savvy-web/github-action-builder`**. Runs as a three-phase `node24` action: `pre` (App token provisioning) -> `main` (sync) -> `post` (token revocation).
 
 Three kit packages carry the service layer:
 
@@ -22,7 +22,7 @@ The action previously ran on `@savvy-web/github-action-effects@3`, which is **de
 
 **For detailed architecture:** `@./.claude/design/silk-sync-action/architecture.md` — Load when modifying sync workflow logic, adding sync capabilities, debugging GitHub API interactions, or understanding the kit service layer.
 
-**Effect v4 API authority:** `.repos/effect` — vendored read-only Effect source pinned to `effect@4.0.0` (matching `catalog:effect`) with v3→v4 migration notes. **Kit API authority:** `.repos/effected`, pinned to `@effected/github-actions@0.20.0`; each package's `CLAUDE.md` is the intended usage and `packages/<name>/src/index.ts` is the real export surface. Consult both rather than memory.
+**Effect v4 API authority:** `.repos/effect` — vendored read-only Effect source pinned to `effect@4.1.1` (matching `catalog:effected`) with v3→v4 migration notes. **Kit API authority:** `.repos/effected`, pinned to `@effected/github-actions@0.30.0`; each package's `CLAUDE.md` is the intended usage and `packages/<name>/src/index.ts` is the real export surface. Consult both rather than memory.
 
 ## Commands
 
@@ -51,7 +51,7 @@ Turbo tasks: `build:prod` and `generate:schema` each `dependsOn` `types:check`, 
 
 Build entries and the optional-dependency `ignore` list (cyclonedx's XML and draft-2019 plugins, pulled in transitively by `@effected/github-actions` -> `@effected/sbom`) are configured in `action.config.ts`.
 
-Output: `dist/pre.js`, `dist/main.js`, `dist/post.js` (~414 kB main, ~285 kB pre/post after the `@effected` port — down from 487 kB / 468 kB) plus `dist/package.json`. The kit's confinement invariants hold in the bundle: zero occurrences of `azure`, `cyclonedx`, `sigstore` or `xmlbuilder` in any entry. The build also persists a local copy under `.github/actions/local/` (for `act` testing); both are committed.
+Output: `dist/pre.js`, `dist/main.js`, `dist/post.js` (~555 kB main, ~410 kB pre/post on Effect 4.1.1; each entry grew ~57 kB in the 4.1 round, when `GitHubApp.layer` began signing through core `Signature`) plus `dist/package.json`. The kit's confinement invariants hold in the bundle: zero occurrences of `azure`, `cyclonedx`, `sigstore` or `xmlbuilder` in any entry. `dist/` is committed.
 
 ### Running a Single Test
 
@@ -116,7 +116,7 @@ Each push is guarded: if the remote `v<major>` tag or `dev` already points at it
 - **The route is the key**: `client.request("GET /repos/{owner}/{repo}", …)` types both params and response from the literal alone. **No casts, no `octokit.request()` escape hatch, no `operation: string`.** The org custom-properties endpoint (`GET /orgs/{org}/properties/values`) *is* in octokit's paginating route map — the old "typing gap" note was stale. Its one genuine gap is `repository_node_id`, absent from the generated type and recovered by a `Schema.decodeUnknownOption` in `src/github/reads.ts`.
 - **`Repo` is resolved per call, never captured**: every wrapper in `src/github/reads.ts` reads `yield* Repo`. There are exactly two `Repo.provide` sites — `src/sync/syncRepo.ts` at the per-repo chain boundary, and `src/discovery/explicit.ts` per candidate name (discovery must provide it before a repo is ambient) — so the sync loop never threads an `(owner, repo)` pair. `syncLabels`/`syncProject` still take `owner`/`repo` strings, but only for log and result text.
 - **One error per surface**: `GitHubError` with a `kind` discriminant for REST, `GitHubGraphQLError` for GraphQL. Branch on `kind` (`"alreadyExists"`), never on the rendered message.
-- **Entry points**: `Action.run(program, { layer })` composes `ActionRuntime.layer` internally — the platform, HTTP client and workflow-command `Logger` all arrive for free. A layer passed to it must have error channel `never`, hence `Layer.orDie` on `GitHubToken.clientLayer()`.
+- **Entry points**: `Action.run(program, { layer })` composes `ActionRuntime.layer` internally — the platform, HTTP client, workflow-command `Logger` and the `Digest` / `Mac` / `SecureRandom` crypto services all arrive for free. `Signature` does **not**: `GitHubApp.layer` signs the App JWT through it, so `PreLive` provides `NodeCrypto.layerSignature`. A layer passed to it must have error channel `never`, hence `Layer.orDie` on `GitHubToken.clientLayer()`.
 - **Effect-TS services**: class-based `Context.Service` for DI (with companion `*Shape` interfaces), `Layer.mergeAll`/`Layer.provide` for composition
 - **Typed errors**: `Schema.TaggedError` with custom `get message()` getters
 - **State passing**: `ActionState.save`/`getOptional` with Schema structs

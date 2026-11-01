@@ -1,3 +1,4 @@
+import { NodeCrypto } from "@effect/platform-node";
 import { GitHubApp, GitHubIssue, GitHubRepository } from "@effected/github";
 import { GitHubToken } from "@effected/github-actions";
 import { Layer } from "effect";
@@ -6,14 +7,17 @@ import { Layer } from "effect";
  * pre/post: the GitHub App, for minting and revoking the installation token.
  *
  * @remarks
- * `GitHubApp.layer` has no requirements — it owns its own octokit and JWT
- * signing. Everything else `pre`/`post` touch (`ActionState`, `ActionOutputs`)
- * comes from `ActionRuntime.layer` inside `Action.run`.
+ * `GitHubApp.layer` owns its own octokit, but signs the App JWT through core's
+ * `Signature` service, which `ActionRuntime.layer` does not carry (it provides
+ * `Digest`, `Mac` and `SecureRandom` only). `NodeCrypto.layerSignature` is
+ * self-contained — it supplies its own `SecureRandom`. Everything else
+ * `pre`/`post` touch (`ActionState`, `ActionOutputs`) comes from
+ * `ActionRuntime.layer` inside `Action.run`.
  */
-export const PreLive = GitHubApp.layer;
+export const PreLive = GitHubApp.layer.pipe(Layer.provide(NodeCrypto.layerSignature));
 
 /** `post` needs exactly what `pre` needed. */
-export const PostLive = GitHubApp.layer;
+export const PostLive = PreLive;
 
 /**
  * main: the GitHub client, built from the token `pre` persisted.
