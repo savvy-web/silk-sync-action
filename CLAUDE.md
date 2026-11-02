@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Silk Sync Action** is a GitHub Action that synchronizes repository settings, labels, and GitHub Projects V2 linking across a GitHub organization. It reads a centralized JSON config file (`silk.config.json`) and applies it to discovered repositories.
 
-Built with **Effect v4** (`effect@4.1.1` via `catalog:effected`, served by the `@effected/pnpm-plugin-effected` config dependency, which holds the Effect family to one minor, `~4.1.1`) on top of the **`@effected/*`** kit and bundled with **`@savvy-web/github-action-builder`**. Runs as a three-phase `node24` action: `pre` (App token provisioning) -> `main` (sync) -> `post` (token revocation).
+Built with **Effect v4** (`effect@4.1.2` via `catalog:effected`, served by the `@effected/pnpm-plugin-effected` config dependency, which holds the Effect family to one minor, `~4.1.2`) on top of the **`@effected/*`** kit and bundled with **`@savvy-web/github-action-builder`**. Runs as a three-phase `node24` action: `pre` (App token provisioning) -> `main` (sync) -> `post` (token revocation).
 
 Three kit packages carry the service layer:
 
@@ -22,7 +22,7 @@ The action previously ran on `@savvy-web/github-action-effects@3`, which is **de
 
 **For detailed architecture:** `@./.claude/design/silk-sync-action/architecture.md` — Load when modifying sync workflow logic, adding sync capabilities, debugging GitHub API interactions, or understanding the kit service layer.
 
-**Effect v4 API authority:** `.repos/effect` — vendored read-only Effect source pinned to `effect@4.1.1` (matching `catalog:effected`) with v3→v4 migration notes. **Kit API authority:** `.repos/effected`, pinned to `@effected/github-actions@0.30.0`; each package's `CLAUDE.md` is the intended usage and `packages/<name>/src/index.ts` is the real export surface. Consult both rather than memory.
+**Effect v4 API authority:** `.repos/effect` — vendored read-only Effect source pinned to `effect@4.1.2` (matching `catalog:effected`) with v3→v4 migration notes. **Kit API authority:** `.repos/effected`, pinned to `@effected/github-actions@0.31.0`; each package's `CLAUDE.md` is the intended usage and `packages/<name>/src/index.ts` is the real export surface. Consult both rather than memory.
 
 ## Commands
 
@@ -51,7 +51,7 @@ Turbo tasks: `build:prod` and `generate:schema` each `dependsOn` `types:check`, 
 
 Build entries and the optional-dependency `ignore` list (cyclonedx's XML and draft-2019 plugins, pulled in transitively by `@effected/github-actions` -> `@effected/sbom`) are configured in `action.config.ts`.
 
-Output: `dist/pre.js`, `dist/main.js`, `dist/post.js` (~555 kB main, ~410 kB pre/post on Effect 4.1.1; each entry grew ~57 kB in the 4.1 round, when `GitHubApp.layer` began signing through core `Signature`) plus `dist/package.json`. The kit's confinement invariants hold in the bundle: zero occurrences of `azure`, `cyclonedx`, `sigstore` or `xmlbuilder` in any entry. `dist/` is committed.
+Output: `dist/pre.js`, `dist/main.js`, `dist/post.js` (~555 kB main, ~410 kB pre/post on Effect 4.1.2; each entry grew ~57 kB in the 4.1 round, when `GitHubApp.layer` began signing through core `Signature`) plus `dist/package.json`. The kit's confinement invariants hold in the bundle: zero occurrences of `azure`, `cyclonedx`, `sigstore` or `xmlbuilder` in any entry. `dist/` is committed.
 
 ### Running a Single Test
 
