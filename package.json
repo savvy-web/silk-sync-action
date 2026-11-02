@@ -58,6 +58,7 @@
 		"effect": "catalog:effected"
 	},
 	"devDependencies": {
+		"@effected/plugin": "catalog:effected",
 		"@okfit/plugin": "^0.5.28",
 		"@savvy-web/github-action-builder": "^2.4.24",
 		"@savvy-web/silk": "^4.5.5",
