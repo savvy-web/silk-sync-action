@@ -1,5 +1,32 @@
 # @savvy-web/pnpm-module-template
 
+## 1.4.43
+
+### Refactoring
+
+- Rely on the action runtime for the `Signature` service that signs the GitHub App JWT, instead of wiring it by hand. Token provisioning and revocation behave as before [#459][#459]
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effected/config-file | dependency | updated | ^0.24.0 | ^0.25.0 |
+| @effected/github | dependency | updated | ^0.28.0 | ^0.29.0 |
+| @effected/github-actions | dependency | updated | ^0.31.0 | ^0.32.0 |
+| @effected/glob | dependency | updated | ^0.18.0 | ^0.19.0 |
+| @effected/jsonc | dependency | updated | ^0.23.0 | ^0.24.0 |
+| @effected/toml | dependency | updated | ^0.19.0 | ^0.19.1 |
+| @effected/walker | dependency | updated | ^0.25.0 | ^0.25.1 |
+| @effected/yaml | dependency | updated | ^0.28.0 | ^0.29.0 |
+
+[#459][#459]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#459]: https://github.com/savvy-web/silk-sync-action/pull/459
+
 ## 1.4.42
 
 ### Dependencies
