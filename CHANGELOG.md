@@ -1,5 +1,36 @@
 # @savvy-web/pnpm-module-template
 
+## 1.4.44
+
+### Build System
+
+- Build the action with `effected action build` from an `[action]` table in `effected.toml`, replacing the deprecated `@savvy-web/github-action-builder`. The bundles are about 65 kB smaller per entry and the action runs as before [#462][#462]
+
+* Generate `silk.config.schema.json` with `effected schema build`, and gate it in CI with `effected schema check`. The file stays at the same URL and accepts the same configs. It now carries an `$id`, keeps its definitions under `$defs`, and shows the "Silk Sync Configuration" title on the config object itself [#462][#462]
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effect/platform-node | dependency | updated | ~4.1.2 | 4.1.3 |
+| @effected/config-file | dependency | updated | ^0.24.0 | ^0.27.0 |
+| @effected/github | dependency | updated | ^0.28.0 | ^0.32.0 |
+| @effected/github-actions | dependency | updated | ^0.31.0 | ^0.33.0 |
+| @effected/glob | dependency | updated | ^0.18.0 | ^0.21.0 |
+| @effected/jsonc | dependency | updated | ^0.23.0 | ^0.25.0 |
+| @effected/toml | dependency | updated | ^0.19.0 | ^0.20.0 |
+| @effected/walker | dependency | updated | ^0.25.0 | ^0.27.0 |
+| @effected/yaml | dependency | updated | ^0.28.0 | ^0.30.0 |
+| effect | dependency | updated | ~4.1.2 | 4.1.3 |
+
+[#462][#462]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#462]: https://github.com/savvy-web/silk-sync-action/pull/462
+
 ## 1.4.43
 
 ### Refactoring
