@@ -66,7 +66,7 @@ Both modes can be used simultaneously; results are merged and deduplicated by fu
 
 ## Current State
 
-The action is a compiled TypeScript action built on Effect **v4** (`effect@4.1.2`), the `@effected/*` kit (`@effected/github-actions@0.32.0`, `@effected/github@0.29.0`, `@effected/config-file@0.25.0`) and `@savvy-web/github-action-builder`. It runs as a three-phase `node24` action (`pre` -> `main` -> `post`) whose lifecycle is driven by `Action.run` and the `GitHubToken` token lifecycle.
+The action is a compiled TypeScript action built on Effect **v4** (`effect@4.1.3`), the `@effected/*` kit (`@effected/github-actions@0.33.0`, `@effected/github@0.32.0`, `@effected/config-file@0.27.0`) and `effected action build` from `@effected/plugin`. It runs as a three-phase `node24` action (`pre` -> `main` -> `post`) whose lifecycle is driven by `Action.run` and the `GitHubToken` token lifecycle.
 
 The action previously ran on `@savvy-web/github-action-effects@3`, now deprecated and removed. `GitHubClientLive`, `GitHubGraphQL`, `ConfigLoader`, `ErrorAccumulator`, `Step.groupStep`, `GithubMarkdown` and the `/testing` subpath do not exist in the kit. The port froze the observable contract (inputs, outputs, `action.yml`, the three-phase token lifecycle, the step summary and the per-repo error semantics) — see [the parity contract](../../plans/2026-08-04-effected-port-parity-contract.md) for the frozen behavior plus its nine deliberate deviations, and [the API dossier](../../plans/2026-08-04-effected-port-api-dossier.md) for the signature-level legacy-to-kit symbol map.
 
@@ -83,8 +83,8 @@ The action previously ran on `@savvy-web/github-action-effects@3`, now deprecate
 - `src/test-support.ts` — `githubTestLayer`, the shared recorded-response GitHub stack (test-only; nothing outside the three entries is bundled)
 - `src/discovery/`, `src/sync/`, `src/reporting/` — the domain logic
 - `action.yml` — action manifest (`node24`, three phases)
-- `action.config.ts` — `github-action-builder` build config (entries + ignore list + `persistLocal`)
-- `lib/scripts/generate-schema.ts` — build-time JSON Schema generator
+- `effected.toml` — `[action]` build config (entries, `[action.build]`, `[action.persistLocal]`)
+- `lib/scripts/schemastore.config.ts` — `effected schema` config for `silk.config.schema.json`
 
 ### Phase summary
 
@@ -116,7 +116,7 @@ Support both org discovery (via custom properties) and explicit repo lists. Org 
 
 ### Decision 3: User-provided config with a generated JSON schema
 
-Label definitions and repository settings come from a user-provided JSON config file. The published `silk.config.schema.json` is generated from the `SilkConfig` Effect Schema at build time (`lib/scripts/generate-schema.ts`), so IDE autocompletion and runtime validation share one source of truth. Under Effect v4 the generator is `JsonSchema.toDocumentDraft07(Schema.toJsonSchemaDocument(SilkConfig, { onExcessProperty: "error" }))`. The option keeps objects closed (`additionalProperties: false`), because since `4.0.0-rc.118` the default `"ignore"` emits open objects. `toJsonSchemaDocument` emits a 2020-12 `Document`, and `toDocumentDraft07` rewrites it into a draft-07 doc with a `definitions` map plus a root `$ref` (the script then splices in `$schema`/`title`/`description` metadata). Note the v4 emitter's shape: optional/nullable fields render as `anyOf: [T, null]`, and Schema checks (min/max/pattern) render inline on the node (as of rc.118; earlier betas wrapped them in `allOf`). `Schema.isPattern` exports `pattern` only when its RegExp carries the `u` flag, so `HexColor` uses `/.../u`. `SilkConfig` carries an optional `$schema` field so users can reference the schema in their config without a validation error. The generated file was byte-frozen across the `@effected` port (it was reshaped, though not changed in meaning, by the rc.118 upgrade) — `src/schemas.ts` uses core `effect` only and did not change.
+Label definitions and repository settings come from a user-provided JSON config file. The published `silk.config.schema.json` is generated from the `SilkConfig` Effect Schema at build time by `effected schema build` (`lib/scripts/schemastore.config.ts`), so IDE autocompletion and runtime validation share one source of truth. `@effected/schemastore` lowers it to Draft-07 with closed objects (`additionalProperties: false`) by default, lints it and gates it under ajv strict mode. The document is deliberately **unversioned at the repo root** (key `silk.config.schema`, flat layout, `baseUrl` the raw `main` URL), because user configs pin `https://raw.githubusercontent.com/savvy-web/silk-sync-action/main/silk.config.schema.json`; the derived `$id` is that URL. Definitions sit under `$defs` with a root `$ref`, and the root title/description arrive through `rootAnnotations`, which places them on the `SilkConfig` definition (Draft-07 ignores siblings of a root `$ref`). The move off the hand-rolled generator reshaped the file (`definitions` → `$defs`, an added `$id`, the title moved onto the definition) without changing what it accepts. Note the v4 emitter's shape: optional/nullable fields render as `anyOf: [T, null]`, and Schema checks (min/max/pattern) render inline on the node (as of rc.118; earlier betas wrapped them in `allOf`). `Schema.isPattern` exports `pattern` only when its RegExp carries the `u` flag, so `HexColor` uses `/.../u`. `SilkConfig` carries an optional `$schema` field so users can reference the schema in their config without a validation error. The generated file was byte-frozen across the `@effected` port (it was reshaped, though not changed in meaning, by the rc.118 upgrade) — `src/schemas.ts` uses core `effect` only and did not change.
 
 ### Decision 4: Three-phase execution via the `GitHubToken` lifecycle
 
@@ -235,7 +235,7 @@ src/
     +-- summary.ts          # buildSummaryMarkdown (GitHubMarkdown)
 lib/
 +-- scripts/
-    +-- generate-schema.ts  # build-time JSON Schema generation from SilkConfig
+    +-- schemastore.config.ts  # effected schema config: silk.config.schema.json from SilkConfig
 ```
 
 Each source file has a matching suite under `__test__/`, mirroring the `src/` tree. The boundaries worth knowing:
@@ -371,12 +371,12 @@ Declared in `REQUIRED_PERMISSIONS` (`src/pre.ts`) and enforced at provision time
 
 | Package | Purpose |
 | :------ | :------ |
-| `effect` (v4, `~4.1.2` via `catalog:effected`, resolved `4.1.2`) | Schema, Layer, Effect (core Effect-TS); also `JsonSchema` and the HTTP client, all folded into core in v4 |
+| `effect` (v4, exact `4.1.3` via `catalog:effected`) | Schema, Layer, Effect (core Effect-TS); also `JsonSchema` and the HTTP client, all folded into core in v4 |
 | `@effect/platform-node` | Node platform services; a required peer of `@effected/github-actions` kept as a direct dependency |
-| `@effected/github-actions` (0.32.0) | `Action.run` / `ActionRuntime`, inputs, outputs, state, environment, logger, `GitHubToken`, `GitHubMarkdown` |
-| `@effected/github` (0.29.0) | Typed REST + GraphQL `GitHubClient`, `GitHubApp`, `GitHubRepository`, `GitHubIssue`, `Repo`/`RepoRef`, `GitHubError` |
-| `@effected/config-file` (0.25.0) | `ConfigFile.read` + `JsonCodec` for the user config |
-| `@savvy-web/github-action-builder` (dev) | rsbuild/rspack bundling + `action.yml` validation |
+| `@effected/github-actions` (0.33.0) | `Action.run` / `ActionRuntime`, inputs, outputs, state, environment, logger, `GitHubToken`, `GitHubMarkdown` |
+| `@effected/github` (0.32.0) | Typed REST + GraphQL `GitHubClient`, `GitHubApp`, `GitHubRepository`, `GitHubIssue`, `Repo`/`RepoRef`, `GitHubError` |
+| `@effected/config-file` (0.27.0) | `ConfigFile.read` + `JsonCodec` for the user config |
+| `@effected/plugin` (dev) | `effected action build` (rolldown bundling, `action.yml` validation, import check) and `effected schema build`/`check` |
 
 There are no direct `@actions/*` or `@octokit/*` dependencies; octokit is owned by `@effected/github`.
 
@@ -427,20 +427,20 @@ Two further conventions: supply inputs with `ActionInput.layer({ "input-name": "
 ### Turbo task graph
 
 ```text
-types:check -> generate:schema -> build:prod
+types:check -> schema:build -> build:prod
 ```
 
 - **`types:check`** — `tsc --noEmit`.
-- **`generate:schema`** — runs `lib/scripts/generate-schema.ts` (`JsonSchema.toDocumentDraft07(Schema.toJsonSchemaDocument(SilkConfig))` from `src/schemas.ts`) to produce a draft-07 `silk.config.schema.json`, then `biome format --write`.
-- **`build:prod`** — `github-action-builder build`, driven by `action.config.ts`.
+- **`schema:build`** — `effected schema build lib/scripts/schemastore.config.ts` writes `silk.config.schema.json`; `schema:check` is the same walk with no writes, run by `ci:test` as the CI gate. A `biome.json` override sets `expand: "always"` on the file so Biome agrees with the writer's layout.
+- **`build:prod`** — `effected action build`, driven by the `[action]` table in `effected.toml`. It validates `action.yml`, bundles with rolldown, and imports each bundle in a fresh Node to prove it loads (every entry is guarded by `GITHUB_ACTIONS`, so the import runs nothing).
 
-### `action.config.ts`
+### `effected.toml`
 
-Defines the three build entries (`pre`/`main`/`post`), `minify: true`, an `ignore` list (`xmlbuilder2`, `libxmljs2`, `ajv-formats-draft2019`) and `persistLocal`, which writes a local copy of the built action to `.github/actions/local` for `act` testing.
+`[action.entries]` names the three entries (`pre`/`main`/`post`), `[action.build]` sets `minify = true`, and `[action.persistLocal]` (disabled by default) writes a local copy to `.github/actions/local` for `act` testing. Note that `act` does not run `pre` for a local `./` action, so an `act` run without inputs fails `main` on the missing `githubToken` state: that is the harness, not the build.
 
-The `ignore` list is a **safety net whose necessity is unverified**. `@cyclonedx/cyclonedx-library` is still installed transitively (through `@effected/github-actions` -> `@effected/sbom`), but the kit keeps its modules off the default runtime's import graph and the built bundles contain zero bytes of it. The entry may now be dead config; it was kept because removing it was not part of the port's verification budget. See [known follow-ups](#known-follow-ups).
+There is no `ignore` list. The builder-era list (`xmlbuilder2`, `libxmljs2`, `ajv-formats-draft2019`) was removed in the move to `effected action build`: the rolldown bundles contain zero bytes of cyclonedx and pass the import check without it.
 
-Output: `dist/pre.js` (~410 kB), `dist/main.js` (~555 kB), `dist/post.js` (~410 kB) on Effect 4.1.2 — each entry grew ~57 kB in the 4.1 round, when JWT signing moved onto core `Signature`. The kit's confinement invariants hold in the bundle: zero occurrences of `azure`, `cyclonedx`, `sigstore` or `xmlbuilder` in any entry.
+Output: `dist/pre.js` (~345 kB), `dist/main.js` (~490 kB), `dist/post.js` (~345 kB) on Effect 4.1.3 under rolldown — about 65 kB smaller per entry than the rspack bundles, which also reached Node builtins through a `node:module` `createRequire` shim where rolldown emits static `node:` imports. The kit's confinement invariants hold in the bundle: zero occurrences of `azure`, `cyclonedx`, `sigstore` or `xmlbuilder` in any entry.
 
 ---
 
@@ -449,7 +449,6 @@ Output: `dist/pre.js` (~410 kB), `dist/main.js` (~555 kB), `dist/post.js` (~410 
 Carried forward from the `@effected` port, recorded rather than papered over:
 
 - **Adopt `@effect/vitest`.** The suite is still plain vitest. The port moved the doubles, not the runner, deliberately — see [Testing Strategy](#testing-strategy).
-- **Re-verify (and probably delete) the `ignore` list in `action.config.ts`.** Confirm each of `xmlbuilder2`, `libxmljs2` and `ajv-formats-draft2019` is still reachable by the bundler before keeping the alias; the bundle evidence suggests none of them are.
 - **Decide whether to isolate `build:prod` from test-file edits.** Moving tests to `__test__/` did not achieve this on its own — see [Testing Strategy](#testing-strategy) for the measurement and the two reasons. It needs a `src`-only typecheck gating `build:prod`, separate from the full typecheck that covers `__test__`, at the cost of a second `tsc` run. Worth it only if bundle rebuilds become a real cost; today a cold `build:prod` is under two seconds.
 
 ---
@@ -481,7 +480,7 @@ Carried forward from the `@effected` port, recorded rather than papered over:
 **Project files:**
 
 - `action.yml` — action manifest (node24, three phases)
-- `action.config.ts` — build config
+- `effected.toml` — build config
 - `silk.config.schema.json` — generated JSON schema for config validation
 - `src/program.ts`, `src/layers/app.ts` — main program and layer wiring
 - `src/pre.ts`, `src/main.ts`, `src/post.ts` — phase entrypoints

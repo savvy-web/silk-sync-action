@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Silk Sync Action** is a GitHub Action that synchronizes repository settings, labels, and GitHub Projects V2 linking across a GitHub organization. It reads a centralized JSON config file (`silk.config.json`) and applies it to discovered repositories.
 
-Built with **Effect v4** (`effect@4.1.2` via `catalog:effected`, served by the `@effected/pnpm-plugin-effected` config dependency, which holds the Effect family to one minor, `~4.1.2`) on top of the **`@effected/*`** kit and bundled with **`@savvy-web/github-action-builder`**. Runs as a three-phase `node24` action: `pre` (App token provisioning) -> `main` (sync) -> `post` (token revocation).
+Built with **Effect v4** (`effect@4.1.3` via `catalog:effected`, served by the `@effected/pnpm-plugin-effected` config dependency, which pins the Effect family at exact versions) on top of the **`@effected/*`** kit and bundled with **`effected action build`** (from `@effected/plugin`, configured by the `[action]` table in `effected.toml`). Runs as a three-phase `node24` action: `pre` (App token provisioning) -> `main` (sync) -> `post` (token revocation).
 
 Three kit packages carry the service layer:
 
@@ -42,16 +42,18 @@ pnpm run test:coverage     # Run tests with coverage report
 
 ```bash
 pnpm run build             # Full build pipeline via Turbo
-pnpm run build:prod        # Bundle action via github-action-builder (action.config.ts)
-pnpm run generate:schema   # Generate silk.config.schema.json from Effect Schema
-pnpm run validate          # Validate action.yml via github-action-builder
+pnpm run build:prod        # Bundle action via `effected action build` (effected.toml [action]); validates action.yml and import-checks each bundle
+pnpm run schema:build      # Write silk.config.schema.json via `effected schema build` (lib/scripts/schemastore.config.ts)
+pnpm run schema:check      # Same walk, no writes — the CI gate (also run by ci:test)
 ```
 
-Turbo tasks: `build:prod` and `generate:schema` each `dependsOn` `types:check`, but `generate:schema` is **not** in the build chain — `pnpm run build` runs `types:check` -> `build:prod` only. Regenerate the schema explicitly after editing `src/schemas.ts`.
+Turbo tasks: `build:prod` `dependsOn` `types:check` and `schema:build`, so `pnpm run build` regenerates the schema. There is no standalone `validate`: `action.yml` validation runs inside `effected action build`.
 
-Build entries and the optional-dependency `ignore` list (cyclonedx's XML and draft-2019 plugins, pulled in transitively by `@effected/github-actions` -> `@effected/sbom`) are configured in `action.config.ts`.
+Build entries, `[action.build]` and `[action.persistLocal]` live in `effected.toml`. There is no `ignore` list: the rolldown bundle never reaches cyclonedx's optional XML/draft-2019 plugins, which the confinement grep below proves.
 
-Output: `dist/pre.js`, `dist/main.js`, `dist/post.js` (~555 kB main, ~410 kB pre/post on Effect 4.1.2; each entry grew ~57 kB in the 4.1 round, when `GitHubApp.layer` began signing through core `Signature`) plus `dist/package.json`. The kit's confinement invariants hold in the bundle: zero occurrences of `azure`, `cyclonedx`, `sigstore` or `xmlbuilder` in any entry. `dist/` is committed.
+The schema config keeps the document **unversioned at the repo root** (key `silk.config.schema`, `outputDir: "../.."`, flat layout), because user configs pin `https://raw.githubusercontent.com/savvy-web/silk-sync-action/main/silk.config.schema.json`. A `biome.json` override sets `expand: "always"` on that file so Biome agrees with the schema writer's layout.
+
+Output: `dist/pre.js`, `dist/main.js`, `dist/post.js` (~490 kB main, ~345 kB pre/post on Effect 4.1.3 under rolldown) plus `dist/package.json`. The kit's confinement invariants hold in the bundle: zero occurrences of `azure`, `cyclonedx`, `sigstore` or `xmlbuilder` in any entry. `dist/` is committed.
 
 ### Running a Single Test
 
@@ -93,7 +95,7 @@ Each push is guarded: if the remote `v<major>` tag or `dev` already points at it
 ### Source Layout
 
 - `action.yml` -- Action manifest (node24 runtime, three-phase execution)
-- `action.config.ts` -- Build config (entries + optional-dep `ignore` + persistLocal)
+- `effected.toml` -- Build config (`[action.entries]`, `[action.build]`, `[action.persistLocal]`)
 - `src/pre.ts` -- Pre step: `GitHubToken.provision` (token + permission check), save start time
 - `src/main.ts` -- Main step: `Action.run(program, { layer: MainLive })`
 - `src/post.ts` -- Post step: log duration, `GitHubToken.dispose` (revoke)
@@ -108,7 +110,7 @@ Each push is guarded: if the remote `v<major>` tag or `dev` already points at it
 - `src/discovery/` -- Repository discovery (custom properties + explicit repos, merge)
 - `src/sync/` -- Sync orchestration (labels, settings, projects, syncRepo, processRepos)
 - `src/reporting/` -- Stats aggregation + step-summary markdown
-- `lib/scripts/generate-schema.ts` -- Build-time JSON Schema generator (imports `src/schemas.ts`)
+- `lib/scripts/schemastore.config.ts` -- `effected schema` config deriving `silk.config.schema.json` from `SilkConfig`
 - `silk.config.schema.json` -- Generated JSON Schema for user config files
 
 ### Key Patterns
@@ -132,7 +134,7 @@ Each push is guarded: if the remote `v<major>` tag or `dev` already points at it
 ### Testing
 
 - **Vitest** with v8 coverage, `pool: "forks"` for Effect-TS compatibility. Plain vitest (`describe`/`it`/`expect` + `Effect.runPromise`), **not** `@effect/vitest` — the port moved the doubles, not the runner, deliberately: converting both at once installs a virtual `TestClock` across the suite that was the port's only characterization gate.
-- **Tests live in `__test__/`, mirroring `src/`** (`__test__/sync/labels.test.ts` covers `src/sync/labels.ts`) — never colocated, which is the layout the builder's tsconfig already includes. `src/` therefore holds only shipped code. Note this does **not** currently buy build-cache isolation: `build:prod` `dependsOn` `types:check`, `types:check` must cover `__test__`, and a dependency's hash feeds the dependent's, so a test edit still invalidates the bundle. Narrowing `build:prod`'s own `inputs` does nothing about that — measured, not assumed.
+- **Tests live in `__test__/`, mirroring `src/`** (`__test__/sync/labels.test.ts` covers `src/sync/labels.ts`) — never colocated, which is the layout `@effected/plugin/tsconfig/action.json` already includes. `src/` therefore holds only shipped code. Note this does **not** currently buy build-cache isolation: `build:prod` `dependsOn` `types:check`, `types:check` must cover `__test__`, and a dependency's hash feeds the dependent's, so a test edit still invalidates the bundle. Narrowing `build:prod`'s own `inputs` does nothing about that — measured, not assumed.
 - **There is no `/testing` subpath.** Every service ships its own `makeTest(overrides?)` / `layerTest(overrides?)`, and an unstubbed member **dies naming itself** — which is what makes a partial double proof that a test touches nothing it did not stub. `ActionOutputs.layerTest`, `ActionState.layerTest`, `ActionLogger.layerTest`, `ActionEnvironment.layerTest`, `GitHubApp.layerTest`.
 - **`__test__/test-support.ts`'s `githubTestLayer`** is the shared GitHub stack: recorded responses keyed by **route literal** through `GitHubClient.layerFixture` (which pages them for real, through the same engine the live client uses), the **real** `GitHubRepository` / `GitHubIssue` layers over it, and a `Repo`. GraphQL is scripted by document name on top, because an unscripted document in `layerFixture` is a **defect** and every GraphQL failure path here is a recovered *failure*.
 - **Supply inputs with `ActionInput.layer({ "input-name": "value" })`**, never a bare `ConfigProvider` keyed by the plain name. `ActionInput` owns the `INPUT_` derivation; a provider that does not is a silent false green. `ActionInput.variable(name)` spells the runner variable for the one test that must.

@@ -48,7 +48,7 @@ silk-sync-action/
 │   ├── configs/                # Shared configuration files
 │   └── scripts/                # Build and codegen scripts
 ├── action.yml                  # GitHub Action definition
-├── action.config.ts            # Bundler configuration
+├── effected.toml               # Build configuration ([action] table)
 ├── silk.config.schema.json     # JSON Schema for config files
 └── silk.config.example.json    # Example configuration
 ```
@@ -64,8 +64,8 @@ silk-sync-action/
 | `pnpm run lint` | Check code with Biome |
 | `pnpm run lint:fix` | Auto-fix lint issues |
 | `pnpm run typecheck` | Type-check via TypeScript |
-| `pnpm run validate` | Validate the GitHub Action bundle |
-| `pnpm run generate:schema` | Regenerate the JSON Schema from Effect schemas |
+| `pnpm run schema:build` | Regenerate the JSON Schema from Effect schemas |
+| `pnpm run schema:check` | Check the committed JSON Schema is current |
 
 ## Code Quality
 
