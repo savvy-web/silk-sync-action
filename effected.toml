@@ -1,0 +1,11 @@
+[action.entries]
+pre = "src/pre.ts"
+main = "src/main.ts"
+post = "src/post.ts"
+
+[action.build]
+minify = true
+
+[action.persistLocal]
+enabled = false
+path = ".github/actions/local"

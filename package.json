@@ -28,7 +28,7 @@
 	"type": "module",
 	"scripts": {
 		"build": "turbo run build:prod --log-order=grouped",
-		"build:prod": "github-action-builder build",
+		"build:prod": "effected action build",
 		"ci:build": "CI=\"true\" turbo run build:prod --log-order=grouped --output-logs=full",
 		"ci:test": "CI=\"true\" vitest run --coverage",
 		"generate:schema": "tsx lib/scripts/generate-schema.ts && biome format --write silk.config.schema.json",
@@ -42,8 +42,7 @@
 		"test:coverage": "vitest run --coverage --pass-with-no-tests",
 		"test:watch": "vitest --watch --pass-with-no-tests",
 		"typecheck": "turbo run types:check --log-prefix=none --log-order=grouped",
-		"types:check": "tsc --noEmit",
-		"validate": "github-action-builder validate"
+		"types:check": "tsc --noEmit"
 	},
 	"dependencies": {
 		"@effect/platform-node": "catalog:effected",
@@ -59,9 +58,8 @@
 	},
 	"devDependencies": {
 		"@effected/plugin": "catalog:effected",
-		"@okfit/plugin": "^0.5.29",
-		"@savvy-web/github-action-builder": "^2.4.25",
-		"@savvy-web/silk": "^4.5.6",
+		"@okfit/plugin": "^0.5.32",
+		"@savvy-web/silk": "^5.0.0",
 		"@vitest-agent/plugin": "^6.0.5"
 	},
 	"engines": {
