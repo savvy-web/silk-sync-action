@@ -1,9 +1,8 @@
 {
 	"$schema": "http://json-schema.org/draft-07/schema#",
-	"title": "Silk Sync Configuration",
-	"description": "Configuration for the silk-sync workflow that standardizes repository labels and settings across the organization.",
-	"$ref": "#/definitions/SilkConfig",
-	"definitions": {
+	"$id": "https://raw.githubusercontent.com/savvy-web/silk-sync-action/main/silk.config.schema.json",
+	"$ref": "#/$defs/SilkConfig",
+	"$defs": {
 		"LabelDefinition": {
 			"type": "object",
 			"properties": {
@@ -24,7 +23,11 @@
 					"description": "Hex color without # prefix"
 				}
 			},
-			"required": ["name", "description", "color"],
+			"required": [
+				"name",
+				"description",
+				"color"
+			],
 			"additionalProperties": false,
 			"title": "Label Definition"
 		},
@@ -42,28 +45,31 @@
 			"type": "object",
 			"properties": {
 				"has_wiki": {
-					"$ref": "#/definitions/OptionalBoolean"
+					"$ref": "#/$defs/OptionalBoolean"
 				},
 				"has_issues": {
-					"$ref": "#/definitions/OptionalBoolean"
+					"$ref": "#/$defs/OptionalBoolean"
 				},
 				"has_projects": {
-					"$ref": "#/definitions/OptionalBoolean"
+					"$ref": "#/$defs/OptionalBoolean"
 				},
 				"has_discussions": {
-					"$ref": "#/definitions/OptionalBoolean"
+					"$ref": "#/$defs/OptionalBoolean"
 				},
 				"allow_merge_commit": {
-					"$ref": "#/definitions/OptionalBoolean"
+					"$ref": "#/$defs/OptionalBoolean"
 				},
 				"allow_squash_merge": {
-					"$ref": "#/definitions/OptionalBoolean"
+					"$ref": "#/$defs/OptionalBoolean"
 				},
 				"squash_merge_commit_title": {
 					"anyOf": [
 						{
 							"type": "string",
-							"enum": ["PR_TITLE", "COMMIT_OR_PR_TITLE"]
+							"enum": [
+								"PR_TITLE",
+								"COMMIT_OR_PR_TITLE"
+							]
 						},
 						{
 							"type": "null"
@@ -74,7 +80,11 @@
 					"anyOf": [
 						{
 							"type": "string",
-							"enum": ["PR_BODY", "COMMIT_MESSAGES", "BLANK"]
+							"enum": [
+								"PR_BODY",
+								"COMMIT_MESSAGES",
+								"BLANK"
+							]
 						},
 						{
 							"type": "null"
@@ -82,19 +92,19 @@
 					]
 				},
 				"allow_rebase_merge": {
-					"$ref": "#/definitions/OptionalBoolean"
+					"$ref": "#/$defs/OptionalBoolean"
 				},
 				"allow_update_branch": {
-					"$ref": "#/definitions/OptionalBoolean"
+					"$ref": "#/$defs/OptionalBoolean"
 				},
 				"delete_branch_on_merge": {
-					"$ref": "#/definitions/OptionalBoolean"
+					"$ref": "#/$defs/OptionalBoolean"
 				},
 				"web_commit_signoff_required": {
-					"$ref": "#/definitions/OptionalBoolean"
+					"$ref": "#/$defs/OptionalBoolean"
 				},
 				"allow_auto_merge": {
-					"$ref": "#/definitions/OptionalBoolean"
+					"$ref": "#/$defs/OptionalBoolean"
 				}
 			},
 			"additionalProperties": false,
@@ -119,17 +129,20 @@
 					"type": "array",
 					"description": "Labels to sync across repositories",
 					"items": {
-						"$ref": "#/definitions/LabelDefinition"
+						"$ref": "#/$defs/LabelDefinition"
 					}
 				},
 				"settings": {
-					"$ref": "#/definitions/RepositorySettings"
+					"$ref": "#/$defs/RepositorySettings"
 				}
 			},
-			"required": ["labels", "settings"],
+			"required": [
+				"labels",
+				"settings"
+			],
 			"additionalProperties": false,
-			"title": "Silk Config",
-			"description": "Organization-wide sync configuration"
+			"title": "Silk Sync Configuration",
+			"description": "Configuration for the silk-sync workflow that standardizes repository labels and settings across the organization."
 		}
 	}
 }
