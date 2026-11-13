@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Silk Sync Action** is a GitHub Action that synchronizes repository settings, labels, and GitHub Projects V2 linking across a GitHub organization. It reads a centralized JSON config file (`silk.config.json`) and applies it to discovered repositories.
 
-Built with **Effect v4** (`effect@4.1.3` via `catalog:effected`, served by the `@effected/pnpm-plugin-effected` config dependency, which pins the Effect family at exact versions) on top of the **`@effected/*`** kit and bundled with **`effected action build`** (from `@effected/plugin`, configured by the `[action]` table in `effected.toml`). Runs as a three-phase `node24` action: `pre` (App token provisioning) -> `main` (sync) -> `post` (token revocation).
+Built with **Effect v4** (`effect@4.1.4` via `catalog:effected`, served by the `@effected/pnpm-plugin-effected` config dependency, which pins the Effect family at exact versions) on top of the **`@effected/*`** kit and bundled with **`effected action build`** (from `@effected/plugin`, configured by the `[action]` table in `effected.toml`). Runs as a three-phase `node24` action: `pre` (App token provisioning) -> `main` (sync) -> `post` (token revocation).
 
 Three kit packages carry the service layer:
 
@@ -22,7 +22,7 @@ The action previously ran on `@savvy-web/github-action-effects@3`, which is **de
 
 **For detailed architecture:** `@./.claude/design/silk-sync-action/architecture.md` — Load when modifying sync workflow logic, adding sync capabilities, debugging GitHub API interactions, or understanding the kit service layer.
 
-**Effect v4 API authority:** `.repos/effect` — vendored read-only Effect source pinned to `effect@4.1.2` (matching `catalog:effected`) with v3→v4 migration notes. **Kit API authority:** `.repos/effected`, pinned to `@effected/github-actions@0.32.0`; each package's `CLAUDE.md` is the intended usage and `packages/<name>/src/index.ts` is the real export surface. Consult both rather than memory.
+**Effect v4 API authority:** `.repos/effect` — vendored read-only Effect source pinned to `effect@4.1.4` (matching `catalog:effected`) with v3→v4 migration notes. **Kit API authority:** `.repos/effected`, pinned to `@effected/github-actions@0.34.0`; each package's `CLAUDE.md` is the intended usage and `packages/<name>/src/index.ts` is the real export surface. Consult both rather than memory.
 
 ## Commands
 
@@ -53,7 +53,7 @@ Build entries, `[action.build]` and `[action.persistLocal]` live in `effected.to
 
 The schema config keeps the document **unversioned at the repo root** (key `silk.config.schema`, `outputDir: "../.."`, flat layout), because user configs pin `https://raw.githubusercontent.com/savvy-web/silk-sync-action/main/silk.config.schema.json`. A `biome.json` override sets `expand: "always"` on that file so Biome agrees with the schema writer's layout.
 
-Output: `dist/pre.js`, `dist/main.js`, `dist/post.js` (~490 kB main, ~345 kB pre/post on Effect 4.1.3 under rolldown) plus `dist/package.json`. The kit's confinement invariants hold in the bundle: zero occurrences of `azure`, `cyclonedx`, `sigstore` or `xmlbuilder` in any entry. `dist/` is committed.
+Output: `dist/pre.js`, `dist/main.js`, `dist/post.js` (~490 kB main, ~345 kB pre/post on Effect 4.1.4 under rolldown) plus `dist/package.json`. The kit's confinement invariants hold in the bundle: zero occurrences of `azure`, `cyclonedx`, `sigstore` or `xmlbuilder` in any entry. `dist/` is committed.
 
 ### Running a Single Test
 
