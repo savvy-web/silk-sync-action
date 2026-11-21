@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { NodeFileSystem } from "@effect/platform-node";
 import { GitHubError } from "@effected/github";
+import type { StepLogEntry } from "@effected/github-actions";
 import { ActionEnvironment, ActionInput, ActionLogger, ActionOutputs } from "@effected/github-actions";
 import { Effect, Layer, Logger } from "effect";
 import { describe, expect, it } from "vitest";
@@ -38,11 +39,12 @@ const arrange = (options: {
 	readonly inputs: Record<string, string>;
 	readonly github?: GitHubTestOptions;
 	readonly recorded: Recorded;
+	readonly logger?: Layer.Layer<ActionLogger>;
 }) =>
 	Layer.mergeAll(
 		ActionInput.layer(options.inputs),
 		ActionEnvironment.layerTest({ GITHUB_REPOSITORY: "acme/a", GITHUB_REPOSITORY_OWNER: "acme" }),
-		ActionLogger.layerTest(),
+		options.logger ?? ActionLogger.layerTest(),
 		ActionOutputs.layerTest({
 			set: (name, value) =>
 				Effect.sync(() => {
@@ -234,5 +236,97 @@ describe("program", () => {
 		expect(recorded.failures).toEqual([]);
 		expect(outputValue(recorded, "success")).toBe("false");
 		expect(outputValue(recorded, "repos-failed")).toBe("1");
+	});
+
+	describe("step log", () => {
+		const outline = (entries: ReadonlyArray<StepLogEntry>) =>
+			entries.map((e) => (e.kind === "phase" ? `# ${e.title}` : `${e.outcome}: ${e.name} -> ${e.summary}`));
+
+		const trackedRepo = {
+			repository_id: 1,
+			repository_name: "a",
+			repository_full_name: "acme/a",
+			repository_node_id: "na",
+			properties: [
+				{ property_name: "project-tracking", value: "true" },
+				{ property_name: "project-number", value: "9" },
+			],
+		};
+
+		it("frames discovery and sync as phases with one step per unit of work", async () => {
+			const log = ActionLogger.recording();
+			const layer = arrange({
+				inputs: { repos: "a", "config-file": configFile() },
+				github: {
+					request: {
+						"GET /repos/{owner}/{repo}": { node_id: "N", name: "a", full_name: "acme/a", owner: { login: "acme" } },
+						"POST /repos/{owner}/{repo}/labels": {},
+					},
+					paginate: { "GET /repos/{owner}/{repo}/labels": [] },
+				},
+				recorded: emptyRecord(),
+				logger: log.layer,
+			});
+			await program.pipe(Effect.provide(layer), Effect.provide(Logger.layer([])), Effect.runPromise);
+			// No project-tracking repo, so there is no "Resolve projects" step.
+			expect(outline(log.entries())).toEqual([
+				"# Discovery",
+				"success: Discover repositories -> Discovered 1 repository",
+				"# Sync",
+				"success: acme/a -> acme/a · labels 1 created",
+			]);
+		});
+
+		it("marks project resolution as a warning when a project is closed", async () => {
+			const log = ActionLogger.recording();
+			const layer = arrange({
+				inputs: { "custom-properties": "project-tracking=true", "config-file": configFile() },
+				github: {
+					graphql: {
+						resolveProject: {
+							ok: true,
+							data: { organization: { projectV2: { id: "P9", title: "Board", number: 9, closed: true } } },
+						},
+					},
+					request: {
+						"GET /repos/{owner}/{repo}": { node_id: "N", name: "a", full_name: "acme/a", owner: { login: "acme" } },
+						"POST /repos/{owner}/{repo}/labels": {},
+					},
+					paginate: {
+						"GET /orgs/{org}/properties/values": [trackedRepo],
+						"GET /repos/{owner}/{repo}/labels": [],
+					},
+				},
+				recorded: emptyRecord(),
+				logger: log.layer,
+			});
+			await program.pipe(Effect.provide(layer), Effect.provide(Logger.layer([])), Effect.runPromise);
+			expect(outline(log.entries())).toEqual([
+				"# Discovery",
+				"success: Discover repositories -> Discovered 1 repository",
+				"warning: Resolve projects -> Resolved 0/1 project",
+				"# Sync",
+				'failure: acme/a -> acme/a · 1 error: resolve project: Project "Board" is closed',
+			]);
+		});
+
+		it("fails the discovery step when discovery fails", async () => {
+			const log = ActionLogger.recording();
+			const layer = arrange({
+				inputs: { "custom-properties": "workflow=standard", "config-file": configFile() },
+				github: {
+					paginate: {
+						"GET /orgs/{org}/properties/values": GitHubError.rejected("listPropertyValues", 403, "Forbidden"),
+					},
+				},
+				recorded: emptyRecord(),
+				logger: log.layer,
+			});
+			await program.pipe(Effect.provide(layer), Effect.provide(Logger.layer([])), Effect.runPromise);
+			const entries = outline(log.entries());
+			expect(entries[0]).toBe("# Discovery");
+			expect(entries[1]).toMatch(/^failure: Discover repositories -> /);
+			expect(entries).not.toContain("# Sync");
+		});
 	});
 });

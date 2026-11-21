@@ -5,9 +5,11 @@ import { discoverRepos } from "./discovery/index.js";
 import { parseInputs } from "./inputs.js";
 import { aggregateStats } from "./reporting/stats.js";
 import { buildSummaryMarkdown } from "./reporting/summary.js";
+import { plural } from "./reporting/text.js";
 import type { DiscoveredRepo } from "./schemas.js";
 import { ResultsOutput, SilkConfig } from "./schemas.js";
 import { processRepos } from "./sync/processRepos.js";
+import type { ProjectCache } from "./sync/projects.js";
 import { resolveProjects } from "./sync/projects.js";
 
 const projectNumbersOf = (repos: ReadonlyArray<DiscoveredRepo>): ReadonlyArray<number> => {
@@ -31,15 +33,29 @@ export const program = Effect.gen(function* () {
 	const config = yield* ConfigFile.read(inputs.configFile, { schema: SilkConfig, codec: JsonCodec });
 	yield* Effect.logInfo(`Config loaded: ${config.labels.length} labels`);
 
-	// `Step.groupStep` was `group` + `withStep`; the kit exposes the two halves.
-	const discovery = discoverRepos(org, inputs);
-	const repos = yield* logger.group("Discover repositories", logger.withStep("Discover repositories", discovery));
+	// The step log: a `phase` is a bold heading, and each unit of work under it is
+	// its own `step`, folded on success and unfolded on failure. Steps are never
+	// wrapped in a `group`: a step opened inside a group cannot fold.
+	const { repos, projectCache } = yield* logger.phase(
+		"Discovery",
+		Effect.gen(function* () {
+			const repos = yield* logger.step("Discover repositories", discoverRepos(org, inputs), {
+				summary: (found) => `Discovered ${plural(found.length, "repository", "repositories")}`,
+			});
+			const projectNumbers = inputs.syncProjects ? projectNumbersOf(repos) : [];
+			const projectCache: ProjectCache =
+				projectNumbers.length === 0
+					? new Map()
+					: yield* logger.step("Resolve projects", resolveProjects(org, projectNumbers), {
+							summary: (cache) =>
+								`Resolved ${[...cache.values()].filter((e) => e.ok).length}/${plural(cache.size, "project")}`,
+						});
+			return { repos, projectCache };
+		}),
+	);
 
-	const projectNumbers = inputs.syncProjects ? projectNumbersOf(repos) : [];
-	const projectCache = yield* resolveProjects(org, projectNumbers);
-
-	const sync = processRepos(repos, config, projectCache, inputs);
-	const results = yield* logger.group("Sync repositories", logger.withStep("Sync repositories", sync));
+	// One step per repository, so each folds or fails on its own.
+	const results = yield* logger.phase("Sync", processRepos(repos, config, projectCache, inputs));
 
 	const stats = aggregateStats(results);
 	yield* outputs.summary(buildSummaryMarkdown(stats, inputs));
