@@ -76,6 +76,9 @@ export const resolveProjects = (
 				}),
 				Effect.catch((e) => Effect.succeed({ ok: false as const, error: e.reason })),
 			);
+			// Every repository tracking this project will fail on it; warn once here,
+			// where the cause is, so the resolving step is marked `⚠`.
+			if (!entry.ok) yield* Effect.logWarning(`Project #${num}: ${entry.error}`);
 			cache.set(num, entry);
 		}
 		return cache;

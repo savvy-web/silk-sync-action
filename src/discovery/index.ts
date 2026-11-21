@@ -32,7 +32,6 @@ export const discoverRepos = (
 			);
 		}
 
-		yield* Effect.logInfo(`Discovered ${all.length} repositories`);
 		for (const r of all) yield* Effect.logDebug(`  - ${r.fullName}`);
 		return all;
 	});
