@@ -1,5 +1,13 @@
 # @savvy-web/pnpm-module-template
 
+## 1.4.51
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effected/github-actions | dependency | updated | ^0.36.1 | ^0.37.0 |
+
 ## 1.4.50
 
 ### Features
