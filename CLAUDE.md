@@ -20,7 +20,7 @@ Runtime dependencies are those three plus `effect` and `@effect/platform-node` (
 
 The action previously ran on `@savvy-web/github-action-effects@3`, which is **deprecated and removed**. `GitHubClientLive`, `GitHubGraphQL`, `ConfigLoader`, `ErrorAccumulator`, `Step.groupStep`, `GithubMarkdown` and the `/testing` subpath's nine `*Test` modules **do not exist** in the kit. See `.claude/plans/2026-08-04-effected-port-api-dossier.md` for the full symbol map.
 
-**For detailed architecture:** `@./.claude/design/silk-sync-action/architecture.md` — Load when modifying sync workflow logic, adding sync capabilities, debugging GitHub API interactions, or understanding the kit service layer.
+**For detailed architecture:** the OKF bundle at `okf/` (start at `okf/index.md`; config in `.config/okfit.toml`) — the module, the action and config contracts, the token-lifecycle and sync-run flows, the decisions behind the kit service layer, and the gotchas. Load the relevant concept when modifying sync workflow logic, adding sync capabilities, debugging GitHub API interactions, or understanding the kit service layer.
 
 **Effect v4 API authority:** `.repos/effect` — vendored read-only Effect source pinned to `effect@4.1.5` (matching `catalog:effected`) with v3→v4 migration notes. **Kit API authority:** `.repos/effected`, pinned to `@effected/github-actions@0.34.0`; each package's `CLAUDE.md` is the intended usage and `packages/<name>/src/index.ts` is the real export surface. Consult both rather than memory.
 
