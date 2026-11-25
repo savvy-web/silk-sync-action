@@ -1,0 +1,9 @@
+# Decision
+
+* [Build on Effect v4 and the @effected kit, owning only domain logic](effected-kit.md) - Three kit packages supply auth, the resilient typed GitHub client, state, outputs and logging, so the action ships no rate limiter, no octokit and no hand-wired platform layers.
+* [Discover repositories by custom properties, by explicit list, or both as a union](dual-discovery.md) - Org custom properties are self-service but org-only, an explicit list works anywhere, and their union lets a repository be force-included by name.
+* [Every REST call is keyed by its route literal, with no casts](route-literal-requests.md) - client.request and client.paginate take literals like GET /repos/{owner}/{repo}, which type both params and response; the one untyped field is recovered by a Schema decode, never a cast.
+* [Generate silk.config.schema.json from the SilkConfig Effect Schema](generated-config-schema.md) - One Schema drives both runtime validation and the published JSON Schema, via effected schema build; schema:check is the CI gate against drift.
+* [Keep the suite on plain vitest rather than @effect/vitest, for now](plain-vitest-runner.md) - The port onto the kit moved the test doubles but not the runner, because converting both at once would have installed a virtual TestClock across the port's only characterization gate.
+* [Per-repository failures are recorded in results, never fatal, via Effect.partition](per-repo-accumulation.md) - syncRepo's error channel is never; every operation's failure becomes a SyncErrorRecord, and processRepos collects results with Effect.partition since the kit ships no ErrorAccumulator.
+* [Repo is ambient and resolved per call, provided at exactly two sites](ambient-repo.md) - Wrappers read yield\* Repo instead of taking an (owner, repo) pair; syncRepo provides it for the per-repo chain and explicit discovery provides it per candidate.
